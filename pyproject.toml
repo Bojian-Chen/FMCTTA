@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fmctta"
+version = "0.1.0"
+description = "Continual test-time adaptation for UniFreq fault diagnosis models"
+requires-python = ">=3.9"
+dependencies = [
+  "torch>=2.1",
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "huggingface-hub>=0.20",
+  "safetensors>=0.4",
+]
+
+[tool.setuptools.packages.find]
+include = ["fmctta*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"

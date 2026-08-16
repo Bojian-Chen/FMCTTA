@@ -1,0 +1,17 @@
+{
+  "dataset": "WT",
+  "name": "WT_0p1s_custom",
+  "raw_root": "/home/xyc3090/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "output": "../../data/ctta_custom/WT_0p1s_custom.mat",
+  "classes": [
+    "healthy",
+    "broken",
+    "missing_tooth",
+    "root_crack",
+    "wear"
+  ],
+  "domains": ["20", "25", "30", "35", "40", "45", "50", "55"],
+  "samples_per_class": 100,
+  "selection": "uniform",
+  "target_stream_order": "interleaved"
+}
