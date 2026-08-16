@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 import scipy.io as sio
 import torch
 
@@ -58,3 +59,39 @@ def test_target_cap_does_not_change_source_split(tmp_path: Path) -> None:
     assert len(data.source.train) == 6
     assert len(data.source.validation) == 2
     assert len(data.target_dataset(1)) == 3
+
+
+def test_per_class_sampling_partitions_repeated_target_domains(tmp_path: Path) -> None:
+    spec = _make_dataset(tmp_path)
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domain=0,
+        target_domains=(1, 1, 1),
+        source_samples_per_class=(3, 4),
+        target_samples_per_class=((2, 1), (1, 2), (2, 2)),
+        stream_order="class_block",
+        seed=7,
+    )
+
+    assert len(data.source.train) == 5
+    assert len(data.source.validation) == 2
+    targets = [data.target_dataset(1, position) for position in range(3)]
+    assert [len(target) for target in targets] == [3, 3, 4]
+    assert [
+        torch.bincount(target.labels, minlength=2).tolist() for target in targets
+    ] == [[2, 1], [1, 2], [2, 2]]
+    all_ids = torch.cat([target.sample_ids for target in targets])
+    assert len(torch.unique(all_ids)) == len(all_ids)
+
+
+def test_repeated_target_request_cannot_reuse_samples(tmp_path: Path) -> None:
+    spec = _make_dataset(tmp_path)
+    with pytest.raises(ValueError, match="distinct samples"):
+        FaultDataModule(
+            spec,
+            tmp_path,
+            source_domain=0,
+            target_domains=(1, 1),
+            target_samples_per_class=((3, 3), (3, 3)),
+        )

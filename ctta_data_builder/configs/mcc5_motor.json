@@ -29,20 +29,20 @@
     "winding_H_and_bearing_inner_H",
     "winding_H_and_bearing_outer_H"
   ],
-  "domains": [
-    "source_steady_1000rpm_20Nm",
-    "torque_2000rpm_20Nm",
-    "torque_3000rpm_20Nm",
-    "torque_3000rpm_40Nm",
-    "torque_2000rpm_40Nm",
-    "torque_1000rpm_40Nm",
-    "speed_1000rpm_40Nm",
-    "speed_2000rpm_40Nm",
-    "speed_3000rpm_40Nm",
-    "speed_2000rpm_20Nm",
-    "speed_1000rpm_20Nm"
-  ],
-  "samples_per_class": 100,
+  "domains": {
+    "0": "steady_1000rpm_20Nm",
+    "1": "torque_2000rpm_20Nm",
+    "2": "torque_3000rpm_20Nm",
+    "3": "torque_3000rpm_40Nm",
+    "4": "torque_2000rpm_40Nm",
+    "5": "torque_1000rpm_40Nm",
+    "6": "speed_1000rpm_40Nm",
+    "7": "speed_2000rpm_40Nm",
+    "8": "speed_3000rpm_40Nm",
+    "9": "speed_2000rpm_20Nm",
+    "10": "speed_1000rpm_20Nm"
+  },
+  "samples_per_class": 200,
   "selection": "uniform",
   "target_stream_order": "interleaved"
 }

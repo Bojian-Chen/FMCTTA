@@ -3,9 +3,13 @@
 
 import argparse
 from pathlib import Path
+from typing import Any, Mapping, Optional, Sequence
 
 from fmctta.config import DATASETS, dataset_spec_from_manifest
 from fmctta.runner import run_experiment
+
+
+CONFIG_SECTIONS = {"protocol", "data", "model", "adaptation", "runtime"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -16,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     protocol = parser.add_argument_group("protocol")
-    protocol.add_argument("--dataset", choices=sorted(DATASETS), default="PU_Real")
+    protocol.add_argument("--dataset", choices=sorted(DATASETS), default="PU")
     protocol.add_argument(
         "--domains",
         default="",
@@ -62,6 +66,23 @@ def build_parser() -> argparse.ArgumentParser:
     data.add_argument("--strict-data", action="store_true")
     data.add_argument("--max-source-per-class", type=int, default=None)
     data.add_argument("--max-target-per-domain", type=int, default=None)
+    data.add_argument(
+        "--source-samples-per-class",
+        default="",
+        help=(
+            "Source samples per class: one count for all classes, or a "
+            "comma-separated count for each class"
+        ),
+    )
+    data.add_argument(
+        "--target-samples-per-class",
+        default="",
+        help=(
+            "Target samples per class: one count for every target-stream "
+            "occurrence, or semicolon-separated occurrences; each occurrence "
+            "is one count or comma-separated counts for every class"
+        ),
+    )
 
     model = parser.add_argument_group("UniFreq and source classifier")
     model.add_argument(
@@ -79,6 +100,15 @@ def build_parser() -> argparse.ArgumentParser:
     model.add_argument("--local-files-only", action="store_true")
     model.add_argument(
         "--classifier", choices=["mlp", "linear", "cosine"], default="mlp"
+    )
+    model.add_argument(
+        "--feature-branch",
+        choices=["fused", "time", "frequency"],
+        default="fused",
+        help=(
+            "UniFreq features for the downstream classifier: fused uses both "
+            "branches, while time or frequency runs only that branch"
+        ),
     )
     model.add_argument("--classifier-dropout", type=float, default=0.1)
     model.add_argument("--source-epochs", type=int, default=30)
@@ -100,7 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     adaptation = parser.add_argument_group("online adaptation")
-    adaptation.add_argument("--adaptation-learning-rate", type=float, default=1e-4)
+    adaptation.add_argument("--adaptation-learning-rate", type=float, default=5e-4)
     adaptation.add_argument("--adaptation-weight-decay", type=float, default=0.0)
     adaptation.add_argument("--adaptation-steps", type=int, default=1)
     adaptation.add_argument(
@@ -158,7 +188,108 @@ def build_parser() -> argparse.ArgumentParser:
     runtime.add_argument("--workers", type=int, default=0)
     runtime.add_argument("--output-dir", default=str(project_dir / "outputs"))
     runtime.add_argument("--run-name", default="")
+    runtime.add_argument(
+        "--config",
+        default="",
+        help="YAML experiment configuration; command-line options override it",
+    )
     return parser
+
+
+def _as_cli_value(name: str, value: Any) -> Any:
+    if isinstance(value, (str, bytes)):
+        return value
+    if name == "domains" and isinstance(value, Sequence):
+        return ",".join(str(item) for item in value)
+    if name == "source_samples_per_class":
+        if isinstance(value, Sequence):
+            return ",".join(str(item) for item in value)
+        return str(value)
+    if name == "target_samples_per_class":
+        if not isinstance(value, Sequence):
+            return str(value)
+        if all(
+            not isinstance(item, Sequence) or isinstance(item, (str, bytes))
+            for item in value
+        ):
+            return ";".join(str(item) for item in value)
+        return ";".join(
+            ",".join(str(count) for count in occurrence)
+            for occurrence in value
+        )
+    return value
+
+
+def _load_yaml_defaults(
+    path: Path,
+    parser: argparse.ArgumentParser,
+    inherited_paths: Optional[Sequence[Path]] = None,
+) -> Mapping[str, Any]:
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError(
+            "YAML experiment configs require PyYAML; install requirements.txt"
+        ) from exc
+
+    path = path.resolve()
+    inherited_paths = tuple(inherited_paths or ())
+    if path in inherited_paths:
+        chain = " -> ".join(str(item) for item in (*inherited_paths, path))
+        raise ValueError(f"YAML base configuration cycle: {chain}")
+    if not path.is_file():
+        raise FileNotFoundError(f"YAML configuration does not exist: {path}")
+    content = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if content is None:
+        return {}
+    if not isinstance(content, Mapping):
+        raise ValueError("YAML configuration must contain a mapping")
+
+    base = content.pop("base", None)
+    if base is None:
+        inherited_values = {}
+    elif isinstance(base, str) and base.strip():
+        inherited_values = dict(
+            _load_yaml_defaults(
+                path.parent / base,
+                parser,
+                (*inherited_paths, path),
+            )
+        )
+    else:
+        raise ValueError("YAML base must be a non-empty relative file path")
+
+    values = dict(inherited_values)
+    for section, section_values in content.items():
+        if section in CONFIG_SECTIONS:
+            if not isinstance(section_values, Mapping):
+                raise ValueError(f"YAML section {section!r} must be a mapping")
+            values.update(section_values)
+        else:
+            values[section] = section_values
+
+    known = {action.dest for action in parser._actions}
+    unknown = sorted(set(values).difference(known))
+    if unknown:
+        raise ValueError(
+            "Unknown YAML configuration options: " + ", ".join(unknown)
+        )
+    return {
+        name: _as_cli_value(name, value)
+        for name, value in values.items()
+    }
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = build_parser()
+    config_parser = argparse.ArgumentParser(add_help=False)
+    config_parser.add_argument("--config", default="")
+    config_args, _ = config_parser.parse_known_args(argv)
+    if config_args.config:
+        parser.set_defaults(
+            **_load_yaml_defaults(Path(config_args.config), parser)
+        )
+    return parser.parse_args(argv)
 
 
 def validate_args(args: argparse.Namespace) -> None:
@@ -176,6 +307,14 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("workers cannot be negative")
     if args.source_backbone_lr_scale < 0:
         raise ValueError("source_backbone_lr_scale cannot be negative")
+    if args.max_source_per_class is not None and args.source_samples_per_class:
+        raise ValueError(
+            "Use either max_source_per_class or source_samples_per_class, not both"
+        )
+    if args.max_target_per_domain is not None and args.target_samples_per_class:
+        raise ValueError(
+            "Use either max_target_per_domain or target_samples_per_class, not both"
+        )
     if not 0 <= args.classifier_dropout < 1:
         raise ValueError("classifier_dropout must be in [0, 1)")
     if args.method == "source" and args.adaptation_parameter_scope != "default":
@@ -225,8 +364,7 @@ def validate_args(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
+    args = parse_args()
     validate_args(args)
     if args.dataset_manifest:
         manifest_path = Path(args.dataset_manifest).resolve()

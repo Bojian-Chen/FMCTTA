@@ -1,0 +1,34 @@
+# Shared settings for all experiment YAML files. Individual experiment files
+# inherit this file with: base: ../base.yaml
+
+protocol:
+  dataset: PU
+  stream_order: shuffled
+  stream_batch_size: 16
+  seed: 2025
+
+data:
+  normalization: none
+  source_validation_ratio: 0.2
+
+model:
+  model_id: bojian1/UniFreq-tiny
+  classifier: mlp
+  classifier_dropout: 0.1
+  source_epochs: 30
+  source_batch_size: 64
+  eval_batch_size: 128
+  source_learning_rate: 0.01
+  source_backbone_lr_scale: 0.01
+  source_weight_decay: 0.0001
+  source_gradient_clip: 1.0
+
+adaptation:
+  adaptation_learning_rate: 0.0001
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+
+runtime:
+  device: auto
+  workers: 0
+  output_dir: outputs

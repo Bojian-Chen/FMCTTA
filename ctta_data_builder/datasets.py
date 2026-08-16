@@ -384,7 +384,7 @@ MOTOR_CLASSES = (
 )
 MOTOR_DOMAINS = (
     DomainDefinition(
-        "source_steady_1000rpm_20Nm",
+        "steady_1000rpm_20Nm",
         "torque_circulation_20Nm_1000rpm",
         ((15.0, 25.0), (65.0, 75.0)),
     ),

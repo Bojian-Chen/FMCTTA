@@ -59,6 +59,8 @@ class FaultDataModule:
         strict_data: bool = False,
         max_source_per_class: Optional[int] = None,
         max_target_per_domain: Optional[int] = None,
+        source_samples_per_class: Optional[Sequence[int]] = None,
+        target_samples_per_class: Optional[Sequence[Sequence[int]]] = None,
     ) -> None:
         self.spec = spec
         self.source_domain = int(source_domain)
@@ -69,6 +71,19 @@ class FaultDataModule:
         self.seed = seed
         self.max_source_per_class = max_source_per_class
         self.max_target_per_domain = max_target_per_domain
+        self.source_samples_per_class = (
+            None
+            if source_samples_per_class is None
+            else tuple(int(count) for count in source_samples_per_class)
+        )
+        self.target_samples_per_class = (
+            None
+            if target_samples_per_class is None
+            else tuple(
+                tuple(int(count) for count in occurrence)
+                for occurrence in target_samples_per_class
+            )
+        )
         self.data_warnings: List[str] = []
 
         self._validate_options()
@@ -84,6 +99,7 @@ class FaultDataModule:
             self._make_dataset(train_ids, self.source_domain),
             self._make_dataset(validation_ids, self.source_domain),
         )
+        self._target_datasets = self._build_target_datasets()
 
     def _validate_options(self) -> None:
         if self.source_domain in self.target_domains:
@@ -102,6 +118,59 @@ class FaultDataModule:
             raise ValueError(
                 "stream_order must be shuffled, class_block, or interleaved"
             )
+        if self.max_source_per_class is not None:
+            if self.max_source_per_class < 1:
+                raise ValueError("max_source_per_class must be positive")
+            if self.source_samples_per_class is not None:
+                raise ValueError(
+                    "max_source_per_class and source_samples_per_class are "
+                    "mutually exclusive"
+                )
+        if self.max_target_per_domain is not None:
+            if self.max_target_per_domain < 1:
+                raise ValueError("max_target_per_domain must be positive")
+            if self.target_samples_per_class is not None:
+                raise ValueError(
+                    "max_target_per_domain and target_samples_per_class are "
+                    "mutually exclusive"
+                )
+            if len(set(self.target_domains)) != len(self.target_domains):
+                raise ValueError(
+                    "Repeated target domains require target_samples_per_class so "
+                    "their samples can be allocated without reuse"
+                )
+        if self.source_samples_per_class is not None:
+            if len(self.source_samples_per_class) != self.spec.num_classes:
+                raise ValueError(
+                    "source_samples_per_class must contain one count per class"
+                )
+            if any(
+                count < 2 or count > self.spec.samples_per_class
+                for count in self.source_samples_per_class
+            ):
+                raise ValueError(
+                    "Each source class count must be between 2 and "
+                    f"{self.spec.samples_per_class}"
+                )
+        if self.target_samples_per_class is not None:
+            if len(self.target_samples_per_class) != len(self.target_domains):
+                raise ValueError(
+                    "target_samples_per_class must contain one entry for each "
+                    "target-stream occurrence"
+                )
+            for counts in self.target_samples_per_class:
+                if len(counts) != self.spec.num_classes:
+                    raise ValueError(
+                        "Each target sample entry must contain one count per class"
+                    )
+                if any(
+                    count < 1 or count > self.spec.samples_per_class
+                    for count in counts
+                ):
+                    raise ValueError(
+                        "Each target class count must be between 1 and "
+                        f"{self.spec.samples_per_class}"
+                    )
 
     def _load_mat(self, path: Path, strict_data: bool) -> Tuple[np.ndarray, np.ndarray]:
         if not path.is_file():
@@ -179,8 +248,13 @@ class FaultDataModule:
         for class_id in range(self.spec.num_classes):
             class_ids = domain_ids[self.labels[domain_ids] == class_id].copy()
             rng.shuffle(class_ids)
-            if self.max_source_per_class is not None:
-                class_ids = class_ids[: self.max_source_per_class]
+            class_limit = (
+                self.source_samples_per_class[class_id]
+                if self.source_samples_per_class is not None
+                else self.max_source_per_class
+            )
+            if class_limit is not None:
+                class_ids = class_ids[:class_limit]
             if class_ids.shape[0] < 2:
                 raise ValueError(
                     "Each source class needs at least two samples for train/validation"
@@ -234,7 +308,113 @@ class FaultDataModule:
             domain,
         )
 
-    def target_dataset(self, domain: int) -> FaultDomainDataset:
+    def _target_counts(self) -> Tuple[Tuple[int, ...], ...]:
+        if self.target_samples_per_class is not None:
+            return self.target_samples_per_class
+        return tuple(
+            (self.spec.samples_per_class,) * self.spec.num_classes
+            for _ in self.target_domains
+        )
+
+    def _target_class_ids(self, domain: int) -> Tuple[np.ndarray, ...]:
+        ids = self._domain_indices(domain)
+        rng = np.random.RandomState(self.seed + 1009 * (domain + 1))
+        by_class = []
+        for class_id in range(self.spec.num_classes):
+            class_ids = ids[self.labels[ids] == class_id].copy()
+            rng.shuffle(class_ids)
+            by_class.append(class_ids)
+        return tuple(by_class)
+
+    def _order_target_ids(
+        self,
+        by_class: Sequence[np.ndarray],
+        domain: int,
+        stream_position: int,
+    ) -> np.ndarray:
+        if self.stream_order == "class_block":
+            return np.concatenate(by_class)
+        if self.stream_order == "interleaved":
+            return np.asarray(
+                [
+                    class_ids[offset]
+                    for offset in range(max(len(ids) for ids in by_class))
+                    for class_ids in by_class
+                    if offset < len(class_ids)
+                ],
+                dtype=np.int64,
+            )
+        ids = np.concatenate(by_class)
+        rng = np.random.RandomState(
+            self.seed + 1009 * (domain + 1) + 7919 * (stream_position + 1)
+        )
+        rng.shuffle(ids)
+        return ids
+
+    def _build_target_datasets(self) -> Dict[int, FaultDomainDataset]:
+        if self.max_target_per_domain is not None:
+            return {}
+
+        cursors: Dict[int, List[int]] = {}
+        available: Dict[int, Tuple[np.ndarray, ...]] = {}
+        datasets: Dict[int, FaultDomainDataset] = {}
+        for position, (domain, counts) in enumerate(
+            zip(self.target_domains, self._target_counts())
+        ):
+            if domain not in available:
+                available[domain] = self._target_class_ids(domain)
+                cursors[domain] = [0] * self.spec.num_classes
+            selected = []
+            for class_id, count in enumerate(counts):
+                start = cursors[domain][class_id]
+                stop = start + count
+                class_ids = available[domain][class_id]
+                if stop > len(class_ids):
+                    raise ValueError(
+                        f"Target domain {domain}, class {class_id} requests "
+                        f"{stop} distinct samples across repeated occurrences, "
+                        f"but only {len(class_ids)} are available"
+                    )
+                selected.append(class_ids[start:stop])
+                cursors[domain][class_id] = stop
+            ids = self._order_target_ids(selected, domain, position)
+            datasets[position] = self._make_dataset(ids, domain)
+        return datasets
+
+    @property
+    def sample_selection(self) -> Dict[str, object]:
+        source_counts = (
+            self.source_samples_per_class
+            if self.source_samples_per_class is not None
+            else (self.max_source_per_class,) * self.spec.num_classes
+            if self.max_source_per_class is not None
+            else (self.spec.samples_per_class,) * self.spec.num_classes
+        )
+        return {
+            "source_samples_per_class": list(source_counts),
+            "target_samples_per_class": (
+                None
+                if self.max_target_per_domain is not None
+                else [list(counts) for counts in self._target_counts()]
+            ),
+            "max_target_per_domain": self.max_target_per_domain,
+        }
+
+    def target_dataset(
+        self, domain: int, stream_position: Optional[int] = None
+    ) -> FaultDomainDataset:
+        if self.max_target_per_domain is None:
+            if stream_position is None:
+                stream_position = self.target_domains.index(domain)
+            if not 0 <= stream_position < len(self.target_domains):
+                raise ValueError(f"Invalid target stream position: {stream_position}")
+            if self.target_domains[stream_position] != domain:
+                raise ValueError(
+                    f"Target stream position {stream_position} is domain "
+                    f"{self.target_domains[stream_position]}, not {domain}"
+                )
+            return self._target_datasets[stream_position]
+
         ids = self._domain_indices(domain)
         rng = np.random.RandomState(self.seed + 1009 * (domain + 1))
         if self.stream_order == "shuffled":

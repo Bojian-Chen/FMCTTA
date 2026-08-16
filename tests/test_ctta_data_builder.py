@@ -18,6 +18,7 @@ from ctta_data_builder.datasets import (
     _window_signal,
 )
 from fmctta.config import dataset_spec_from_manifest
+from fmctta.data import FaultDataModule
 
 
 def test_native_rate_windowing_has_no_overlap_or_resampling() -> None:
@@ -37,7 +38,10 @@ def test_configured_class_and_domain_order_is_retained(tmp_path: Path) -> None:
             "raw_root": str(tmp_path),
             "output": "custom.mat",
             "classes": ["KI14", "K001"],
-            "domains": ["N15_M01_F10", "N09_M07_F10"],
+            "domains": {
+                "0": "N15_M01_F10",
+                "1": "N09_M07_F10",
+            },
             "samples_per_class": 5,
         },
         tmp_path,
@@ -95,11 +99,11 @@ def test_build_reindexes_in_configured_order(tmp_path: Path, monkeypatch) -> Non
         def load_windows(self, raw_root, class_name, domain_name):
             value = self.domain_names.index(domain_name) * 10
             value += self.class_names.index(class_name)
-            values = np.full((4, 1, 10), value, dtype=np.float32)
+            values = np.full((128, 1, 10), value, dtype=np.float32)
             return WindowBatch(
                 values,
-                np.arange(4, dtype=np.float64) / 10,
-                [f"{domain_name}-{class_name}"] * 4,
+                np.arange(128, dtype=np.float64) / 10,
+                [f"{domain_name}-{class_name}"] * 128,
             )
 
     monkeypatch.setitem(core.DATASETS, "fake", FakeAdapter())
@@ -109,14 +113,26 @@ def test_build_reindexes_in_configured_order(tmp_path: Path, monkeypatch) -> Non
         output=tmp_path / "ordered.mat",
         classes=("b", "a"),
         domains=("d1", "d0"),
-        samples_per_class=2,
+        samples_per_class=120,
         name="ordered",
     )
 
     result = build_dataset(config)
     content = loadmat(result.mat_path)
-    assert content["data"].shape == (8, 1, 10)
-    assert content["label"].reshape(-1).tolist() == [0, 0, 1, 1, 0, 0, 1, 1]
-    assert content["domain"].reshape(-1).tolist() == [0, 0, 0, 0, 1, 1, 1, 1]
-    assert content["original_label"].reshape(-1).tolist() == [1, 1, 0, 0] * 2
-    assert content["original_domain"].reshape(-1).tolist() == [1] * 4 + [0] * 4
+    assert content["data"].shape == (480, 1, 10)
+    assert content["label"][:120].reshape(-1).tolist() == [0] * 120
+    assert content["label"][120:240].reshape(-1).tolist() == [1] * 120
+    assert content["domain"][:240].reshape(-1).tolist() == [0] * 240
+    assert content["domain"][240:].reshape(-1).tolist() == [1] * 240
+    assert content["original_label"][:120].reshape(-1).tolist() == [1] * 120
+    assert content["original_domain"][:240].reshape(-1).tolist() == [1] * 240
+    assert result.manifest["domain_labels"] == {"0": "d1", "1": "d0"}
+    assert result.manifest["domain_sequence_defined_at_runtime"] is True
+    assert "source_domain" not in result.manifest
+
+    spec = dataset_spec_from_manifest(result.manifest_path)
+    data = FaultDataModule(spec, tmp_path, 0, (1,), normalization="none")
+    assert spec.samples_per_class == 120
+    assert len(data.source.train) == 192
+    assert len(data.source.validation) == 48
+    assert len(data.target_dataset(1)) == 240

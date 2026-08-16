@@ -67,13 +67,20 @@ class UniFreqFaultModel(nn.Module):
         processor: UniFreqProcessor,
         head: nn.Module,
         model_id: str,
+        feature_branch: str = "fused",
     ) -> None:
         super().__init__()
+        if feature_branch not in {"fused", "time", "frequency"}:
+            raise ValueError(
+                "feature_branch must be fused, time, or frequency; got "
+                f"{feature_branch!r}"
+            )
         self.encoder = encoder
         self.config = config
         self.processor = processor
         self.head = head
         self.model_id = model_id
+        self.feature_branch = feature_branch
 
     @property
     def backbone(self) -> nn.Module:
@@ -81,6 +88,8 @@ class UniFreqFaultModel(nn.Module):
 
     @property
     def feature_dim(self) -> int:
+        if self.feature_branch != "fused":
+            return int(self.config.embed_dim)
         multiplier = 2 if self.config.timefreq_fusion == "concat" else 1
         return int(self.config.embed_dim) * multiplier
 
@@ -96,7 +105,12 @@ class UniFreqFaultModel(nn.Module):
         return {name: value.to(device) for name, value in batch.items()}
 
     def forward_features(self, inputs: torch.Tensor) -> torch.Tensor:
-        return self.encoder(self._prepare(inputs))
+        batch = self._prepare(inputs)
+        if self.feature_branch == "fused":
+            return self.encoder(batch)
+        if self.feature_branch == "time":
+            return self.encoder.time_features(batch)
+        return self.encoder.frequency_features(batch)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.head(self.forward_features(inputs))
@@ -124,6 +138,7 @@ def build_model(
     token: Optional[str] = None,
     cache_dir: Optional[str] = None,
     local_files_only: bool = False,
+    feature_branch: str = "fused",
 ) -> Tuple[UniFreqFaultModel, UniFreqConfig]:
     encoder, config = load_model(
         model_id,
@@ -133,7 +148,16 @@ def build_model(
         local_files_only=local_files_only,
     )
     processor = UniFreqProcessor(config)
-    multiplier = 2 if config.timefreq_fusion == "concat" else 1
+    if feature_branch not in {"fused", "time", "frequency"}:
+        raise ValueError(
+            "feature_branch must be fused, time, or frequency; got "
+            f"{feature_branch!r}"
+        )
+    multiplier = (
+        2
+        if feature_branch == "fused" and config.timefreq_fusion == "concat"
+        else 1
+    )
     feature_dim = int(config.embed_dim) * multiplier
     head = build_classifier(
         classifier,
@@ -141,6 +165,13 @@ def build_model(
         num_classes,
         classifier_dropout,
     )
-    model = UniFreqFaultModel(encoder, config, processor, head, model_id)
+    model = UniFreqFaultModel(
+        encoder,
+        config,
+        processor,
+        head,
+        model_id,
+        feature_branch=feature_branch,
+    )
     model.disable_encoder_finetuning()
     return model, config

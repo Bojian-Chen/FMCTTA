@@ -51,6 +51,30 @@ def _string_list(value: object, field: str) -> Tuple[str, ...]:
     return items
 
 
+def _domain_labels(value: object) -> Tuple[str, ...]:
+    if isinstance(value, list):
+        return _string_list(value, "domains")
+    if not isinstance(value, dict) or not value:
+        raise ValueError(
+            "domains must map numeric labels to raw domain names, for example "
+            "{\"0\": \"condition_a\", \"1\": \"condition_b\"}"
+        )
+    try:
+        indexed = {int(label): str(name) for label, name in value.items()}
+    except (TypeError, ValueError) as exc:
+        raise ValueError("domains keys must be integer labels starting at 0") from exc
+    expected = list(range(len(indexed)))
+    if sorted(indexed) != expected:
+        raise ValueError(
+            f"domains labels must be contiguous 0..{len(indexed) - 1}; "
+            f"got {sorted(indexed)}"
+        )
+    names = tuple(indexed[label] for label in expected)
+    if len(set(names)) != len(names):
+        raise ValueError(f"domains maps multiple labels to the same domain: {names}")
+    return names
+
+
 def config_from_mapping(
     content: Mapping[str, object],
     base_dir: Optional[Path] = None,
@@ -69,7 +93,7 @@ def config_from_mapping(
         else adapter.class_names
     )
     domains = (
-        _string_list(content["domains"], "domains")
+        _domain_labels(content["domains"])
         if "domains" in content
         else adapter.domain_names
     )
@@ -108,7 +132,9 @@ def validate_config(
     if config.output.suffix.lower() != ".mat":
         raise ValueError("output must use the .mat extension")
     if config.samples_per_class <= 1:
-        raise ValueError("samples_per_class must be at least 2 for source splitting")
+        raise ValueError(
+            "samples_per_class must be at least 2 for FMCTTA train/validation splitting"
+        )
     if config.selection not in {"head", "uniform"}:
         raise ValueError("selection must be 'head' or 'uniform'")
     if config.target_stream_order not in {
@@ -122,7 +148,7 @@ def validate_config(
     if len(config.classes) < 2:
         raise ValueError("At least two classes are required")
     if len(config.domains) < 2:
-        raise ValueError("CTTA requires a source domain and at least one target domain")
+        raise ValueError("At least two labeled domains are required for CTTA")
     invalid_classes = [
         name for name in config.classes if name not in adapter.class_names
     ]
@@ -274,10 +300,9 @@ def _manifest(
     ]
     domain_mapping = [
         {
-            "domain": new_id,
+            "domain_label": new_id,
             "name": name,
             "original_domain": adapter.domain_names.index(name),
-            "role": "source" if new_id == 0 else "target",
         }
         for new_id, name in enumerate(config.domains)
     ]
@@ -298,8 +323,11 @@ def _manifest(
         "num_channels": len(adapter.channel_names),
         "classes": class_mapping,
         "domains": domain_mapping,
-        "source_domain": 0,
-        "target_domain_sequence": list(range(1, len(config.domains))),
+        "domain_labels": {
+            str(label): name for label, name in enumerate(config.domains)
+        },
+        "domain_sequence_defined_at_runtime": True,
+        "available_domain_labels": list(range(len(config.domains))),
         "samples_per_class_per_domain": config.samples_per_class,
         "num_classes": len(config.classes),
         "num_domains": len(config.domains),
@@ -307,8 +335,6 @@ def _manifest(
         "storage_order": "domain -> class -> acquisition time",
         "selection": config.selection,
         "target_stream_order": config.target_stream_order,
-        "target_labels_used_for_stream_construction_only": True,
-        "target_labels_used_for_adaptation": False,
         "recordings": build_metadata["recordings"],
         "combination_counts": build_metadata["combination_counts"],
         "fmctta_spec": {

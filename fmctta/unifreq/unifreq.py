@@ -206,6 +206,16 @@ class UniFreqModel(nn.Module, TimeFrequencyFeatureMixin):
         )
         return time_feature, freq_feature
 
+    def time_features(self, batch):
+        """Encode only the time-domain branch and average original channels."""
+        time_x, time_mask, _, _, _ = self._unpack(batch)
+        time_x, time_mask, batch_size, num_channels = _flatten_channel_samples(
+            time_x,
+            time_mask,
+        )
+        time_feature = self.encode_time_feature(time_x, time_mask=time_mask)
+        return _mean_channel_features(time_feature, batch_size, num_channels)
+
     def frequency_features(self, batch):
         """Encode only the frequency branch and average original channels."""
         time_x, time_mask, freq_x, freq_mask, freq_tail_stats = self._unpack(batch)

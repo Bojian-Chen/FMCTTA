@@ -17,7 +17,12 @@ from .adapters import (
     build_adapter,
     resolve_adaptation_parameter_scope,
 )
-from .config import DATASETS, resolve_sequence
+from .config import (
+    DATASETS,
+    parse_source_samples_per_class,
+    parse_target_samples_per_class,
+    resolve_sequence,
+)
 from .data import FaultDataModule
 from .metrics import ClassificationMeter
 from .model import build_model
@@ -137,6 +142,14 @@ def run_experiment(args) -> Dict[str, Any]:
     spec = DATASETS[args.dataset]
     sequence = resolve_sequence(spec, args.domains)
     source_domain, target_domains = sequence[0], sequence[1:]
+    source_samples_per_class = parse_source_samples_per_class(
+        args.source_samples_per_class, spec.num_classes
+    )
+    target_samples_per_class = parse_target_samples_per_class(
+        args.target_samples_per_class,
+        spec.num_classes,
+        len(target_domains),
+    )
     stream_order = args.stream_order or spec.default_stream_order
     resolved_scope = resolve_adaptation_parameter_scope(
         args.method, args.adaptation_parameter_scope
@@ -165,6 +178,8 @@ def run_experiment(args) -> Dict[str, Any]:
         strict_data=args.strict_data,
         max_source_per_class=args.max_source_per_class,
         max_target_per_domain=args.max_target_per_domain,
+        source_samples_per_class=source_samples_per_class,
+        target_samples_per_class=target_samples_per_class,
     )
     source_train_loader = data.loader(
         data.source.train,
@@ -190,6 +205,7 @@ def run_experiment(args) -> Dict[str, Any]:
         token=args.hf_token or None,
         cache_dir=args.cache_dir or None,
         local_files_only=args.local_files_only,
+        feature_branch=args.feature_branch,
     )
     model.to(device)
     checkpoint_expected = {
@@ -198,6 +214,10 @@ def run_experiment(args) -> Dict[str, Any]:
         "model_id": args.model_id,
         "model_revision": args.model_revision or None,
         "classifier": args.classifier,
+        "feature_branch": args.feature_branch,
+        "source_samples_per_class": data.sample_selection[
+            "source_samples_per_class"
+        ],
         "normalization": args.normalization,
         "input_channels": spec.num_channels,
         "seed": args.seed,
@@ -301,7 +321,7 @@ def run_experiment(args) -> Dict[str, Any]:
     for position, domain in enumerate(target_domains, start=1):
         domain_name = spec.domain_name(domain)
         target_loader = data.loader(
-            data.target_dataset(domain),
+            data.target_dataset(domain, stream_position=position - 1),
             args.stream_batch_size,
             shuffle=False,
             workers=args.workers,
@@ -391,11 +411,13 @@ def run_experiment(args) -> Dict[str, Any]:
             "num_domains": spec.num_domains,
             "num_channels": spec.num_channels,
             "warnings": data.data_warnings,
+            "sample_selection": data.sample_selection,
         },
         "model": {
             "model_id": args.model_id,
             "revision": args.model_revision or None,
             "classifier": args.classifier,
+            "feature_branch": args.feature_branch,
             "feature_dim": model.feature_dim,
         },
         "method": args.method.lower(),

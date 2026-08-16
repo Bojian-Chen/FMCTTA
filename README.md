@@ -126,6 +126,59 @@ Set `--source-backbone-lr-scale 0` to train only the classifier. The default
 `0.01` also fine-tunes UniFreq using one hundredth of the classifier learning
 rate.
 
+### Branch selection
+
+Use `--feature-branch fused` (the default) for the original time/frequency
+fusion. For branch ablations, `--feature-branch time` runs only the time-domain
+encoder and `--feature-branch frequency` runs only the frequency-domain
+encoder. A single branch produces `embed_dim` features instead of the
+concatenated feature vector, so train a new source classifier/checkpoint for
+each selection. Checkpoints record the selection and reject a mismatched run.
+
+For example, train and use a frequency-only source model:
+
+```bash
+python main.py \
+  --dataset PU_Real --domains 3,2,0,1 --method source \
+  --feature-branch frequency --run-name pu-frequency-source
+```
+
+### Per-class sampling and repeated target domains
+
+`--source-samples-per-class` accepts one count for every source class, or a
+comma-separated count for each class. `--target-samples-per-class` works the
+same way for targets; one entry applies to every target-stream occurrence, and
+semicolon-separated entries assign counts by stream position. Repeated target
+domains are allowed. Their samples are allocated without replacement, so the
+sum requested for each repeated domain/class cannot exceed the data available.
+When loading a source checkpoint, pass the same source sampling selection used
+to train it; that selection is recorded in the checkpoint metadata.
+
+```bash
+python main.py \
+  --dataset PU_Real --method tent \
+  --domains 0,1,2,3,1,3,2,3 \
+  --source-samples-per-class 60 \
+  --target-samples-per-class 20 \
+  --run-name repeated-targets
+```
+
+The target stream above has seven occurrences. Each occurrence receives 20
+samples from every class; domain 1 therefore uses 40 distinct samples per
+class, domain 2 uses 40, and domain 3 uses 60. For different allocations by
+occurrence, use for example `--target-samples-per-class '20;10;15;20;10;15;20'`.
+
+The same setup is available as an executable YAML configuration at
+[`configs/experiments/tent_frequency_repeated.yaml`](configs/experiments/tent_frequency_repeated.yaml).
+It inherits the shared values in [`configs/base.yaml`](configs/base.yaml), so
+the experiment file contains only parameters specific to this run:
+
+```bash
+python main.py --config configs/experiments/tent_frequency_repeated.yaml
+```
+
+Command-line options override YAML values.
+
 ### 2. Run continual test-time adaptation
 
 ```bash

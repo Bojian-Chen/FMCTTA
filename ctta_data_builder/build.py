@@ -42,8 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--domains",
         help=(
-            "Override domain order with a comma-separated list; the first is "
-            "the labeled source"
+            "Override the domain-label mapping with raw domain names for labels "
+            "0,1,... in a comma-separated list"
         ),
     )
     parser.add_argument("--samples-per-class", type=int)
@@ -119,8 +119,9 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
             "status": "ok",
             "dataset": config.dataset,
             "name": config.dataset_name,
-            "source_domain": config.domains[0],
-            "target_domains": list(config.domains[1:]),
+            "domain_labels": {
+                str(label): name for label, name in enumerate(config.domains)
+            },
             "classes": list(config.classes),
             "raw_recording_counts": paths,
             "note": (

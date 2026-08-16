@@ -19,13 +19,13 @@
     "KI18",
     "KI21"
   ],
-  "domains": [
-    "N15_M07_F10",
-    "N09_M07_F10",
-    "N15_M01_F10",
-    "N15_M07_F04"
-  ],
-  "samples_per_class": 100,
+  "domains": {
+    "0": "N15_M07_F10",
+    "1": "N09_M07_F10",
+    "2": "N15_M01_F10",
+    "3": "N15_M07_F04"
+  },
+  "samples_per_class": 200,
   "selection": "uniform",
   "target_stream_order": "interleaved"
 }

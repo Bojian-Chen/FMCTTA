@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -201,10 +201,6 @@ def parse_domains(value: str) -> Tuple[int, ...]:
         raise ValueError(f"Invalid domain list: {value!r}") from exc
     if not domains:
         raise ValueError("At least one domain must be specified")
-    if len(set(domains)) != len(domains):
-        raise ValueError(
-            f"Domain sequence contains duplicates: {domains}"
-        )
     return domains
 
 
@@ -220,6 +216,68 @@ def resolve_sequence(spec: DatasetSpec, value: str = "") -> Tuple[int, ...]:
             "CTTA requires one source domain and at least one target domain"
         )
     return sequence
+
+
+def _parse_positive_counts(value: str, context: str) -> Tuple[int, ...]:
+    try:
+        counts = tuple(int(item.strip()) for item in value.split(","))
+    except ValueError as exc:
+        raise ValueError(f"Invalid {context}: {value!r}") from exc
+    if not counts or any(count < 1 for count in counts):
+        raise ValueError(f"{context} must contain positive integers: {value!r}")
+    return counts
+
+
+def parse_source_samples_per_class(
+    value: str, num_classes: int
+) -> Optional[Tuple[int, ...]]:
+    """Parse one count for all source classes or one count per class."""
+    if not value.strip():
+        return None
+    counts = _parse_positive_counts(value, "source-samples-per-class")
+    if len(counts) == 1:
+        return counts * num_classes
+    if len(counts) != num_classes:
+        raise ValueError(
+            "source-samples-per-class must contain one count or exactly "
+            f"{num_classes} counts"
+        )
+    return counts
+
+
+def parse_target_samples_per_class(
+    value: str,
+    num_classes: int,
+    target_count: int,
+) -> Optional[Tuple[Tuple[int, ...], ...]]:
+    """Parse per-target-occurrence class counts from the CLI representation."""
+    if not value.strip():
+        return None
+    entries = tuple(item.strip() for item in value.split(";"))
+    if any(not item for item in entries):
+        raise ValueError("target-samples-per-class cannot contain empty entries")
+    if len(entries) == 1:
+        entries = entries * target_count
+    elif len(entries) != target_count:
+        raise ValueError(
+            "target-samples-per-class must contain one entry or exactly "
+            f"{target_count} semicolon-separated target entries"
+        )
+
+    parsed = []
+    for position, entry in enumerate(entries, start=1):
+        counts = _parse_positive_counts(
+            entry, f"target-samples-per-class entry {position}"
+        )
+        if len(counts) == 1:
+            counts = counts * num_classes
+        elif len(counts) != num_classes:
+            raise ValueError(
+                "Each target-samples-per-class entry must contain one count or "
+                f"exactly {num_classes} counts"
+            )
+        parsed.append(counts)
+    return tuple(parsed)
 
 
 def dataset_spec_from_manifest(path: Path) -> DatasetSpec:

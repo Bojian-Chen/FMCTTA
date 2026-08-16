@@ -67,8 +67,8 @@ pip install -r requirements.txt
 公开模型无需 Hugging Face token。数据默认读取 `../OCTTA/data`；数据预处理与
 说明见 [PHMFD-data-preprocessing](https://github.com/Bojian-Chen/PHMFD-data-preprocessing)。
 
-需要从原始数据自定义 PU、WT、MCC5-Motor 或 HUST-Gearbox 的类别、域和 CTTA
-顺序时，使用 [ctta_data_builder/README_zh.md](ctta_data_builder/README_zh.md)。
+需要从原始数据自定义 PU、WT、MCC5-Motor 或 HUST-Gearbox 的类别和数值域标签
+时，使用 [ctta_data_builder/README_zh.md](ctta_data_builder/README_zh.md)。
 该构建器固定生成原采样率下的 0.1 秒非重叠窗口，不做重采样，并输出可通过
 `--dataset-manifest` 直接加载的动态数据集描述。
 
@@ -90,6 +90,55 @@ python main.py \
 ```text
 outputs/PU_Real/source/pu-source-seed2025/source_checkpoint/
 ```
+
+### 分支选择
+
+`--feature-branch fused` 为默认值，保持原有的时频融合。做消融实验时可指定
+`--feature-branch time` 只运行时域分支，或指定 `--feature-branch frequency`
+只运行频域分支。单分支的特征维度是 `embed_dim`，与融合后的拼接特征不同，因此每种
+选择都需要重新训练源域分类器并使用对应 checkpoint；checkpoint 会记录该选项并拒绝
+加载分支不一致的模型。
+
+例如，仅用频域分支训练源域模型：
+
+```bash
+python main.py \
+  --dataset PU_Real --domains 3,2,0,1 --method source \
+  --feature-branch frequency --run-name pu-frequency-source
+```
+
+### 每类采样数与重复目标域
+
+`--source-samples-per-class` 可填一个数（所有源域类别相同），或以逗号分隔的每类
+样本数。`--target-samples-per-class` 的每一项也可填一个数或每类样本数；单项会应用于
+所有目标流位置，多个目标流位置则用分号分隔。目标域允许重复，同一原始样本会按出现
+位置无放回分配，因此同一目标域同一类别的累计请求数不能超过可用样本数。
+加载源域 checkpoint 时，须传入训练该 checkpoint 时相同的源域采样配置；该配置会被
+记录在 checkpoint 元数据中。
+
+```bash
+python main.py \
+  --dataset PU_Real --method tent \
+  --domains 0,1,2,3,1,3,2,3 \
+  --source-samples-per-class 60 \
+  --target-samples-per-class 20 \
+  --run-name repeated-targets
+```
+
+上例有 7 个目标流位置，每个位置的每类各取 20 个样本；因此域 1、域 2 各使用每类
+40 个互不重复的样本，域 3 使用每类 60 个。需要按目标流位置设置不同数目时，例如可用
+`--target-samples-per-class '20;10;15;20;10;15;20'`。
+
+同样的实验已写为可直接运行的
+[`configs/experiments/tent_frequency_repeated.yaml`](configs/experiments/tent_frequency_repeated.yaml)。
+它通过 [`configs/base.yaml`](configs/base.yaml) 继承公共配置，因此实验文件中只保留
+该次实验需要调整的参数：
+
+```bash
+python main.py --config configs/experiments/tent_frequency_repeated.yaml
+```
+
+命令行参数会覆盖 YAML 中的同名配置。
 
 然后复用该 checkpoint 运行 TENT：
 

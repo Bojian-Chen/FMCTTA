@@ -10,8 +10,17 @@
     "root_crack",
     "wear"
   ],
-  "domains": ["20", "25", "30", "35", "40", "45", "50", "55"],
-  "samples_per_class": 100,
+  "domains": {
+    "0": "20",
+    "1": "25",
+    "2": "30",
+    "3": "35",
+    "4": "40",
+    "5": "45",
+    "6": "50",
+    "7": "55"
+  },
+  "samples_per_class": 200,
   "selection": "uniform",
   "target_stream_order": "interleaved"
 }
