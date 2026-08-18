@@ -1,23 +1,30 @@
-# WT custom 0.1-second dataset profile.
-# Run commands from the repository root so dataset_manifest resolves correctly.
+# WT custom 0.1-second dataset profile; run commands from the repository root so dataset_manifest resolves correctly.
 base: ../base.yaml
 
 protocol:
   # Domain 0 is the labeled source; domains 1 through 7 are target streams.
   domains: [0, 1, 2, 3, 4, 5, 6, 7]
-  # Match the stream order recorded in the custom dataset manifest.
-  stream_order: interleaved
+  # shuffled: mix all selected samples; class_block: finish one class before the next; interleaved: take classes in round-robin order (A1, B1, C1, A2, B2, C2 for three classes with two samples each).
+  stream_order: shuffled # ["shuffled", "class_block", "interleaved"]
 
 data:
   dataset_manifest: data/ctta_custom/WT_0p1s_custom.json
-  # The manifest provides 200 samples for every class in every domain.
-  # Reduce either value for smaller controlled studies.  When loading a source
-  # checkpoint, source_samples_per_class must match the source run.
+  # The manifest provides 200 samples for every class in every domain; reduce either value for smaller controlled studies, but source_samples_per_class must match the source checkpoint run.
   source_samples_per_class: 200
   target_samples_per_class: 200
+  # Per-class example (5 values, in manifest class order); replace the scalar above with this form when classes need different source allocations:
+  # source_samples_per_class: [200, 180, 160, 140, 120]
+  # Use a nested list for target per-class allocation; one inner list is reused for every target-domain occurrence, while the outer list prevents interpreting values as counts for different target positions.
+  # target_samples_per_class: [[200, 180, 160, 140, 120]]
+  # Advanced: `;` separates WT's seven target-stream positions (domains 1--7), while `,` separates its five classes; a scalar entry applies to all classes in that target position:
+  # target_samples_per_class: "200;180;160;140;120;100;80"
+  # Per-position AND per-class allocation (uncomment as a folded YAML string):
+  # target_samples_per_class: >-
+  #   200,180,160,140,120;180,160,140,120,100;160,140,120,100,80;
+  #   140,120,100,80,60;120,100,80,60,40;100,80,60,40,20;80,60,40,20,10
 
 model:
   # UniFreq's global-FFT frequency branch is the primary classifier path.
-  feature_branch: frequency
+  feature_branch: frequency # ["fused", "time", "frequency"]
   # Inherited by every target-domain baseline/adaptation configuration.
   source_checkpoint: outputs/WT_0p1s_custom/source/wt-source-seed2025/source_checkpoint

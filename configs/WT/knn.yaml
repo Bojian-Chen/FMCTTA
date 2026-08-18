@@ -2,7 +2,7 @@
 base: base.yaml
 
 protocol:
-  method: knn
+  method: knn # ["source", "knn", "tent", "eata", "sar", "cotta", "vida", "continual_mae"]
 
 adaptation:
   # Five nearest source-train embeddings, with cosine distance and uniform vote.

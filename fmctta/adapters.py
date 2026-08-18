@@ -848,8 +848,7 @@ def build_adapter(
     if method == "source":
         return SourceAdapter(model, device)
     if method == "knn":
-        # The runner creates the labeled source feature bank after loading (or
-        # fitting) the source model, then hands it to this non-adaptive adapter.
+        # The runner creates the labeled source feature bank after loading (or fitting) the source model, then hands it to this non-adaptive adapter.
         from .knn import KNNAdapter
 
         if knn_reference_features is None or knn_reference_labels is None:
@@ -938,8 +937,7 @@ def build_adapter(
             augmentation,
         )
     if method == "continual_mae":
-        # Import here so continual_mae.py can reuse the public adapter base and
-        # helpers above without creating a module-initialization cycle.
+        # Import here so continual_mae.py can reuse the public adapter base and helpers above without creating a module-initialization cycle.
         from .continual_mae import ContinualMAEAdapter
 
         augmentation = SignalAugment(

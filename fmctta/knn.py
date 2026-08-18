@@ -94,8 +94,7 @@ class KNNAdapter(OnlineAdapter):
         labels = self.reference_labels[indices]
         votes = features.new_zeros(features.shape[0], self.num_classes)
         votes.scatter_add_(1, labels, torch.ones_like(labels, dtype=votes.dtype))
-        # Log vote counts preserve the kNN argmax while yielding meaningful
-        # probabilities for the existing prediction CSV confidence fields.
+        # Log vote counts preserve the kNN argmax while yielding meaningful probabilities for the existing prediction CSV confidence fields.
         return votes.clamp_min(1e-12).log()
 
     @torch.no_grad()

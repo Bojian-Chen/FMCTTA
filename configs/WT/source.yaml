@@ -2,7 +2,7 @@
 base: base.yaml
 
 protocol:
-  method: source
+  method: source # ["source", "knn", "tent", "eata", "sar", "cotta", "vida", "continual_mae"]
 
 model:
   # Override the dataset base: this run must train, not load, the source model.

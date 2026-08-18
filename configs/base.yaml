@@ -1,28 +1,25 @@
-# Shared settings for every PU/WT experiment. Dataset-specific settings live in
-# configs/PU/base.yaml and configs/WT/base.yaml.
+# Shared settings for every PU/WT experiment; dataset-specific settings live in configs/PU/base.yaml and configs/WT/base.yaml.
 
 protocol:
   stream_batch_size: 16
   seed: 2025
 
 data:
-  # dataset and data_root are intentionally absent: dataset_manifest in each
-  # dataset base supplies both the dynamic DatasetSpec and its data directory.
-  normalization: none
+  # dataset and data_root are intentionally absent because each dataset_manifest supplies the dynamic DatasetSpec and its data directory.
+  normalization: none # ["zscore", "minmax", "none"]
   source_validation_ratio: 0.2
-  strict_data: false
+  strict_data: false # [false, true]
   max_source_per_class: null
   max_target_per_domain: null
 
 model:
   model_id: bojian1/UniFreq-tiny
   model_revision: ""
-  # hf_token is intentionally not stored in versioned YAML. Inject it securely
-  # at runtime only when using a private Hugging Face model.
+  # hf_token is intentionally not stored in versioned YAML; inject it securely at runtime only for a private Hugging Face model.
   cache_dir: ""
-  local_files_only: false
-  classifier: mlp
-  classifier_dropout: 0.1
+  local_files_only: false # [false, true]
+  classifier: mlp # ["mlp", "linear", "cosine"]
+  classifier_dropout: 0.0
   source_epochs: 30
   source_batch_size: 64
   eval_batch_size: 128
@@ -35,7 +32,7 @@ adaptation:
   adaptation_learning_rate: 0.0001
   adaptation_weight_decay: 0.0
   adaptation_steps: 1
-  adaptation_parameter_scope: default
+  adaptation_parameter_scope: default # ["default", "layernorm", "classifier", "backbone", "all"]
 
 runtime:
   device: auto

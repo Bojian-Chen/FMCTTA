@@ -14,8 +14,7 @@ from typing import Dict, Optional
 import torch
 import torch.nn as nn
 
-# These common adapter utilities are imported lazily by build_adapter(), after
-# fmctta.adapters has completed module initialization.
+# These common adapter utilities are imported lazily by build_adapter(), after fmctta.adapters has completed module initialization.
 from .adapters import (
     OnlineAdapter,
     SignalAugment,
@@ -189,8 +188,7 @@ class ContinualMAEAdapter(OnlineAdapter):
 
     @torch.no_grad()
     def _update_teacher(self) -> None:
-        # The reference implementation uses a one-update-lag teacher rather
-        # than an EMA teacher; retain that behavior for this adaptation.
+        # The reference implementation uses a one-update-lag teacher rather than an EMA teacher; retain that behavior for this adaptation.
         self.teacher.load_state_dict(self.model.state_dict(), strict=True)
         self.teacher.eval()
         self.teacher.requires_grad_(False)

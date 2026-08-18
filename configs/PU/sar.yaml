@@ -2,10 +2,10 @@
 base: base.yaml
 
 protocol:
-  method: sar
+  method: sar # ["source", "knn", "tent", "eata", "sar", "cotta", "vida", "continual_mae"]
 
 adaptation:
-  adaptation_parameter_scope: layernorm
+  adaptation_parameter_scope: layernorm # ["default", "layernorm", "classifier", "backbone", "all"]
   sar_rho: 0.05
   sar_entropy_margin: null
   sar_reset_threshold: 0.2
