@@ -1,0 +1,23 @@
+# PU custom 0.1-second dataset profile.
+# Run commands from the repository root so dataset_manifest resolves correctly.
+base: ../base.yaml
+
+protocol:
+  # Domain 0 is the labeled source; 1, 2, and 3 are online target streams.
+  domains: [0, 1, 2, 3]
+  # Match the stream order recorded in the custom dataset manifest.
+  stream_order: shuffled
+
+data:
+  dataset_manifest: data/ctta_custom/PU_0p1s_custom.json
+  # The manifest provides 200 samples for every class in every domain.
+  # Reduce either value for smaller controlled studies.  When loading a source
+  # checkpoint, source_samples_per_class must match the source run.
+  source_samples_per_class: 200
+  target_samples_per_class: 200
+
+model:
+  # UniFreq's global-FFT frequency branch is the primary classifier path.
+  feature_branch: frequency
+  # Inherited by every target-domain baseline/adaptation configuration.
+  source_checkpoint: outputs/PU_0p1s_custom/source/pu-source-seed2025/source_checkpoint

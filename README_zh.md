@@ -18,7 +18,7 @@ FMCTTA 首先用一个有标签源域为预训练 UniFreq 编码器训练下游�
 
 - 直接从 Hugging Face 加载 `UniFreq-tiny`、`UniFreq-small` 或
   `UniFreq-base`，项目中不包含预训练流程。
-- 支持 Source-only、TENT、EATA、SAR、CoTTA 和 ViDA。
+- 支持 Source-only、以源域参考集分类的 kNN、TENT、EATA、SAR、CoTTA、ViDA 和 Continual-MAE。
 - 目标标签不会传入任何适配器，只在预测完成后用于计算评估指标。
 - 严格采用单遍目标流，并记录跨域源域遗忘。
 - 源域模型使用 `safetensors` 保存，同时输出逐域、逐样本和在线/适配后指标。
@@ -40,11 +40,13 @@ Face 下载，不会提交到本项目。
 | 方法 | 在线目标 | 默认更新参数 |
 |---|---|---|
 | `source` | 不进行目标域更新 | 无 |
+| `knn` | 固定源域训练集特征库上的余弦 kNN | 无 |
 | `tent` | 熵最小化 | LayerNorm 仿射参数 |
 | `eata` | 可靠性/多样性筛选 + Fisher 约束 | LayerNorm 仿射参数 |
 | `sar` | 可靠熵最小化 + SAM | LayerNorm 仿射参数 |
 | `cotta` | EMA 教师一致性 + 随机恢复 | 全部参数 |
 | `vida` | EMA 一致性 + 高/低秩 ViDA + HKA | ViDA 分支 + 全部基础参数 |
+| `continual_mae` | 频域点分布感知掩码 + 重建 + 教师一致性 | 全部基础参数 + MAE 辅助参数 |
 
 [ViDA](https://github.com/Yangsenqiao/vida) 会在 UniFreq 主干的线性层中
 注入并联的高秩、低秩分支。HKA 根据增强后的教师预测不确定性，在域偏移较大时
@@ -129,13 +131,15 @@ python main.py \
 40 个互不重复的样本，域 3 使用每类 60 个。需要按目标流位置设置不同数目时，例如可用
 `--target-samples-per-class '20;10;15;20;10;15;20'`。
 
-同样的实验已写为可直接运行的
-[`configs/experiments/tent_frequency_repeated.yaml`](configs/experiments/tent_frequency_repeated.yaml)。
-它通过 [`configs/base.yaml`](configs/base.yaml) 继承公共配置，因此实验文件中只保留
-该次实验需要调整的参数：
+使用 `data/ctta_custom` 中自定义 PU/WT 数据集的完整实验 YAML 位于
+[`configs/PU`](configs/PU) 和 [`configs/WT`](configs/WT)。每个目录都有 `source`、
+kNN、TENT、EATA、SAR、CoTTA、ViDA、Continual-MAE 的配置，并通过数据集自己的 `base.yaml` 继承公共设置。
+详细的目录、运行顺序和参数说明见 [`configs/README_zh.md`](configs/README_zh.md)。
+例如，先训练 PU 的源模型，再运行 TENT：
 
 ```bash
-python main.py --config configs/experiments/tent_frequency_repeated.yaml
+python main.py --config configs/PU/source.yaml
+python main.py --config configs/PU/tent.yaml
 ```
 
 命令行参数会覆盖 YAML 中的同名配置。
@@ -143,13 +147,7 @@ python main.py --config configs/experiments/tent_frequency_repeated.yaml
 然后复用该 checkpoint 运行 TENT：
 
 ```bash
-python main.py \
-  --dataset PU_Real \
-  --method tent \
-  --model-id bojian1/UniFreq-tiny \
-  --domains 3,2,0,1 \
-  --source-checkpoint outputs/PU_Real/source/pu-source-seed2025/source_checkpoint \
-  --run-name pu-tent
+python main.py --config configs/PU/tent.yaml
 ```
 
 把 `tent` 替换为 `eata`、`sar`、`cotta` 或 `vida` 即可运行其他方法。
@@ -187,6 +185,7 @@ python main.py \
 5. 先记录在线预测，再执行不使用标签的适配，并单独记录同 batch 的适配后诊断。
 6. 更新后的状态延续到下一个 batch 和下一个域。
 7. 每个目标域结束后在源域验证集上检查遗忘，此过程不会更新适配器。
+   kNN 的源域验证集不会进入其 reference bank。
 
 `online` 是主要指标，表示从当前 batch 学习之前可获得的预测；`post_adapt` 是
 同 batch 更新后的补充诊断，两者不能当作同一预测阶段直接混用。

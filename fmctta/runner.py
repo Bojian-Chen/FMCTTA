@@ -26,6 +26,7 @@ from .config import (
 from .data import FaultDataModule
 from .metrics import ClassificationMeter
 from .model import build_model
+from .knn import build_reference_bank
 from .source import (
     compute_fisher,
     evaluate_supervised,
@@ -195,6 +196,13 @@ def run_experiment(args) -> Dict[str, Any]:
         workers=args.workers,
         device=device,
     )
+    source_reference_loader = data.loader(
+        data.source.train,
+        args.eval_batch_size,
+        shuffle=False,
+        workers=args.workers,
+        device=device,
+    )
 
     model, unifreq_config = build_model(
         args.model_id,
@@ -253,12 +261,12 @@ def run_experiment(args) -> Dict[str, Any]:
         save_checkpoint(checkpoint_dir, model, checkpoint_metadata)
         print(f"Saved source checkpoint: {checkpoint_dir}")
 
-    source_before = evaluate_supervised(
+    source_model_validation = evaluate_supervised(
         model, source_validation_loader, device, spec.num_classes
     )
     print(
         f"Source domain {source_domain} validation accuracy: "
-        f"{source_before['accuracy']:.2f}%"
+        f"{source_model_validation['accuracy']:.2f}%"
     )
 
     fisher: Optional[Dict[str, torch.Tensor]] = None
@@ -269,6 +277,20 @@ def run_experiment(args) -> Dict[str, Any]:
             device,
             adaptation_parameter_names(model, resolved_scope),
             max_batches=args.eata_fisher_batches,
+        )
+
+    knn_reference_features: Optional[torch.Tensor] = None
+    knn_reference_labels: Optional[torch.Tensor] = None
+    if args.method.lower() == "knn":
+        knn_reference_features, knn_reference_labels = build_reference_bank(
+            model,
+            source_reference_loader,
+            device,
+        )
+        print(
+            "Built kNN source-train reference bank: "
+            f"{knn_reference_features.shape[0]} samples, "
+            f"{knn_reference_features.shape[1]} features"
         )
 
     adapter = build_adapter(
@@ -312,7 +334,38 @@ def run_experiment(args) -> Dict[str, Any]:
             args.vida_augmentation_mask_probability
         ),
         vida_augmentation_shift_ratio=args.vida_augmentation_shift_ratio,
+        continual_mae_mask_ratio=args.continual_mae_mask_ratio,
+        continual_mae_augmentations=args.continual_mae_augmentations,
+        continual_mae_reconstruction_weight=(
+            args.continual_mae_reconstruction_weight
+        ),
+        continual_mae_restore_probability=args.continual_mae_restore_probability,
+        continual_mae_augmentation_noise_std=(
+            args.continual_mae_augmentation_noise_std
+        ),
+        continual_mae_augmentation_scale_std=(
+            args.continual_mae_augmentation_scale_std
+        ),
+        continual_mae_augmentation_mask_probability=(
+            args.continual_mae_augmentation_mask_probability
+        ),
+        continual_mae_augmentation_shift_ratio=(
+            args.continual_mae_augmentation_shift_ratio
+        ),
+        knn_neighbors=args.knn_neighbors,
+        knn_reference_features=knn_reference_features,
+        knn_reference_labels=knn_reference_labels,
     )
+    source_before = (
+        evaluate_adapter(adapter, source_validation_loader, device, spec.num_classes)
+        if args.method.lower() == "knn"
+        else source_model_validation
+    )
+    if args.method.lower() == "knn":
+        print(
+            "kNN source-train-reference validation accuracy: "
+            f"{source_before['accuracy']:.2f}%"
+        )
 
     overall = ClassificationMeter(spec.num_classes)
     post_adapt_overall = ClassificationMeter(spec.num_classes)
@@ -423,6 +476,7 @@ def run_experiment(args) -> Dict[str, Any]:
         "method": args.method.lower(),
         "source": {
             "validation": source_before,
+            "classifier_validation": source_model_validation,
             "checkpoint_metadata": checkpoint_metadata,
         },
         "online": {

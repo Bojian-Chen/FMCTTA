@@ -7,3 +7,5 @@ outputs/
 *.egg-info/
 .DS_Store
 *.mat
+*.yaml
+!configs/**/*.yaml

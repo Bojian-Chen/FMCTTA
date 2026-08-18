@@ -31,7 +31,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     protocol.add_argument(
         "--method",
-        choices=["source", "tent", "eata", "sar", "cotta", "vida"],
+        choices=[
+            "source",
+            "knn",
+            "tent",
+            "eata",
+            "sar",
+            "cotta",
+            "vida",
+            "continual_mae",
+        ],
         default="source",
     )
     protocol.add_argument(
@@ -134,12 +143,18 @@ def build_parser() -> argparse.ArgumentParser:
     adaptation.add_argument("--adaptation-weight-decay", type=float, default=0.0)
     adaptation.add_argument("--adaptation-steps", type=int, default=1)
     adaptation.add_argument(
+        "--knn-neighbors",
+        type=int,
+        default=5,
+        help="Number of labeled source-train neighbors used by the kNN baseline",
+    )
+    adaptation.add_argument(
         "--adaptation-parameter-scope",
         choices=["default", "layernorm", "classifier", "backbone", "all"],
         default="default",
         help=(
             "default is LayerNorm for TENT/EATA/SAR and all base parameters "
-            "for CoTTA/ViDA; ViDA branches are always updated"
+            "for CoTTA/ViDA/Continual-MAE; source and kNN do not adapt"
         ),
     )
     adaptation.add_argument("--eata-fisher-alpha", type=float, default=1.0)
@@ -181,6 +196,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     adaptation.add_argument(
         "--vida-augmentation-shift-ratio", type=float, default=0.0
+    )
+    adaptation.add_argument(
+        "--continual-mae-mask-ratio", type=float, default=0.5
+    )
+    adaptation.add_argument("--continual-mae-augmentations", type=int, default=10)
+    adaptation.add_argument(
+        "--continual-mae-reconstruction-weight", type=float, default=0.5
+    )
+    adaptation.add_argument(
+        "--continual-mae-restore-probability", type=float, default=0.1
+    )
+    adaptation.add_argument(
+        "--continual-mae-augmentation-noise-std", type=float, default=0.005
+    )
+    adaptation.add_argument(
+        "--continual-mae-augmentation-scale-std", type=float, default=0.05
+    )
+    adaptation.add_argument(
+        "--continual-mae-augmentation-mask-probability", type=float, default=0.0
+    )
+    adaptation.add_argument(
+        "--continual-mae-augmentation-shift-ratio", type=float, default=0.0
     )
 
     runtime = parser.add_argument_group("runtime and output")
@@ -317,8 +354,13 @@ def validate_args(args: argparse.Namespace) -> None:
         )
     if not 0 <= args.classifier_dropout < 1:
         raise ValueError("classifier_dropout must be in [0, 1)")
-    if args.method == "source" and args.adaptation_parameter_scope != "default":
-        raise ValueError("source does not use an adaptation parameter scope")
+    if (
+        args.method in {"source", "knn"}
+        and args.adaptation_parameter_scope != "default"
+    ):
+        raise ValueError(f"{args.method} does not use an adaptation parameter scope")
+    if args.knn_neighbors < 1:
+        raise ValueError("knn_neighbors must be positive")
     if args.eata_fisher_batches < 1:
         raise ValueError("eata_fisher_batches must be positive")
     if args.sar_rho < 0 or args.sar_reset_threshold < 0:
@@ -361,6 +403,24 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("vida_augmentation_mask_probability must be in [0, 1]")
     if not 0 <= args.vida_augmentation_shift_ratio <= 1:
         raise ValueError("vida_augmentation_shift_ratio must be in [0, 1]")
+    if not 0 < args.continual_mae_mask_ratio <= 1:
+        raise ValueError("continual_mae_mask_ratio must be in (0, 1]")
+    if args.continual_mae_augmentations < 2:
+        raise ValueError("continual_mae_augmentations must be at least 2")
+    if args.continual_mae_reconstruction_weight < 0:
+        raise ValueError("continual_mae_reconstruction_weight cannot be negative")
+    if not 0 <= args.continual_mae_restore_probability <= 1:
+        raise ValueError("continual_mae_restore_probability must be in [0, 1]")
+    if args.continual_mae_augmentation_noise_std < 0:
+        raise ValueError("continual_mae_augmentation_noise_std cannot be negative")
+    if args.continual_mae_augmentation_scale_std < 0:
+        raise ValueError("continual_mae_augmentation_scale_std cannot be negative")
+    if not 0 <= args.continual_mae_augmentation_mask_probability <= 1:
+        raise ValueError(
+            "continual_mae_augmentation_mask_probability must be in [0, 1]"
+        )
+    if not 0 <= args.continual_mae_augmentation_shift_ratio <= 1:
+        raise ValueError("continual_mae_augmentation_shift_ratio must be in [0, 1]")
 
 
 def main() -> None:

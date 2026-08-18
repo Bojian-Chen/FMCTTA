@@ -1,10 +1,15 @@
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from .unifreq import UniFreqConfig, UniFreqProcessor, load_model
+from .unifreq.time_frequency_common import (
+    _flatten_channel_samples,
+    _masked_mean,
+    _mean_channel_features,
+)
 
 
 class CosineClassifier(nn.Module):
@@ -114,6 +119,97 @@ class UniFreqFaultModel(nn.Module):
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         return self.head(self.forward_features(inputs))
+
+    def frequency_token_batch(self, inputs: torch.Tensor) -> Dict[str, Any]:
+        """Prepare one-token-per-frequency-bin inputs for Continual-MAE.
+
+        Continual-MAE treats every non-DC global-FFT bin as one patch.  The
+        two alternative UniFreq frequency tokenizers combine several bins (or
+        use local time windows), so they do not preserve this definition.
+        """
+
+        if getattr(self.encoder, "freq_tokenizer_name", None) != "global_fft":
+            raise ValueError(
+                "Frequency-bin Continual-MAE requires freq_tokenizer="
+                "'global_fft' so each frequency point is one token"
+            )
+        batch = self._prepare(inputs)
+        _, _, freq_x, freq_mask, freq_tail_stats = self.encoder._unpack(batch)
+        if freq_x is None:
+            raise RuntimeError("global_fft tokenization did not provide freq_x")
+        freq_x, freq_mask, batch_size, num_channels = _flatten_channel_samples(
+            freq_x,
+            freq_mask,
+        )
+        tokens, token_mask = self.encoder.freq_tokenizer(
+            freq_x,
+            freq_mask=freq_mask,
+        )
+        flattened_tail_stats = self.encoder._flatten_freq_tail_stats(
+            freq_tail_stats,
+            batch_size,
+            num_channels,
+            tokens.device,
+            tokens.dtype,
+        )
+        return {
+            "batch": batch,
+            "frequency_values": freq_x.squeeze(1),
+            "tokens": tokens,
+            "token_mask": token_mask,
+            "freq_tail_stats": flattened_tail_stats,
+            "batch_size": batch_size,
+            "num_channels": num_channels,
+        }
+
+    def encode_frequency_tokens(
+        self,
+        token_batch: Dict[str, Any],
+        tokens: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Encode frequency-bin tokens prepared by :meth:`frequency_token_batch`."""
+
+        values = token_batch["tokens"] if tokens is None else tokens
+        return self.encoder._encode_transformer(
+            self.encoder.freq_encoder,
+            values,
+            token_batch["token_mask"],
+        )
+
+    def classify_frequency_tokens(
+        self,
+        token_batch: Dict[str, Any],
+        tokens: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Classify a masked frequency-bin token sequence and its encoding."""
+
+        if self.feature_branch == "time":
+            raise ValueError(
+                "Frequency-bin Continual-MAE requires feature_branch="
+                "'frequency' or 'fused'"
+            )
+        encoded = self.encode_frequency_tokens(token_batch, tokens)
+        frequency_feature = _masked_mean(encoded, token_batch["token_mask"])
+        frequency_feature = self.encoder._apply_freq_tail_feature(
+            frequency_feature,
+            token_batch["freq_tail_stats"],
+        )
+        frequency_feature = _mean_channel_features(
+            frequency_feature,
+            token_batch["batch_size"],
+            token_batch["num_channels"],
+        )
+        if self.feature_branch == "frequency":
+            features = frequency_feature
+        else:
+            time_feature = self.encoder.time_features(token_batch["batch"])
+            if self.encoder.fusion_mode == "concat":
+                features = torch.cat([time_feature, frequency_feature], dim=1)
+            else:
+                if self.encoder.fusion is None:
+                    raise RuntimeError("UniFreq learned-gate fusion is unavailable")
+                features = self.encoder.fusion(time_feature, frequency_feature)
+        return self.head(features), encoded
 
     def enable_encoder_finetuning(self) -> None:
         if hasattr(self.encoder, "enable_finetuning"):

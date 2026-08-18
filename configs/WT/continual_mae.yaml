@@ -1,0 +1,20 @@
+# One-dimensional Continual-MAE adapted from the CVPR 2024 method. Run after
+# configs/WT/source.yaml; see configs/README_zh.md for the UniFreq adaptation.
+base: base.yaml
+
+protocol:
+  method: continual_mae
+
+adaptation:
+  adaptation_parameter_scope: all
+  continual_mae_mask_ratio: 0.5
+  continual_mae_augmentations: 10
+  continual_mae_reconstruction_weight: 0.5
+  continual_mae_restore_probability: 0.1
+  continual_mae_augmentation_noise_std: 0.005
+  continual_mae_augmentation_scale_std: 0.05
+  continual_mae_augmentation_mask_probability: 0.0
+  continual_mae_augmentation_shift_ratio: 0.0
+
+runtime:
+  run_name: wt-continual-mae

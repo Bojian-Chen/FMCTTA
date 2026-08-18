@@ -1,4 +1,4 @@
-"""Minimal sharpness-aware optimizer used by SAR."""
+"""Sharpness-aware optimizer used exclusively by the SAR adapter."""
 
 from copy import deepcopy
 from typing import Iterable, Type
@@ -7,8 +7,8 @@ import torch
 import torch.nn as nn
 
 
-class SAM:
-    """Two-step SAM wrapper with an explicit perturbation rollback path."""
+class SAR:
+    """Two-step SAR optimizer with an explicit perturbation rollback path."""
 
     def __init__(
         self,
@@ -19,7 +19,7 @@ class SAM:
         **kwargs,
     ) -> None:
         if rho < 0:
-            raise ValueError("SAM rho must be non-negative")
+            raise ValueError("SAR rho must be non-negative")
         self.base_optimizer = base_optimizer(parameters, **kwargs)
         self.param_groups = self.base_optimizer.param_groups
         self.rho = rho

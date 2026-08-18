@@ -1,0 +1,12 @@
+# Source-reference kNN baseline. Run configs/WT/source.yaml first.
+base: base.yaml
+
+protocol:
+  method: knn
+
+adaptation:
+  # Five nearest source-train embeddings, with cosine distance and uniform vote.
+  knn_neighbors: 5
+
+runtime:
+  run_name: wt-knn

@@ -1,0 +1,15 @@
+# Run after configs/WT/source.yaml.
+base: base.yaml
+
+protocol:
+  method: eata
+
+adaptation:
+  adaptation_parameter_scope: layernorm
+  eata_fisher_alpha: 1.0
+  eata_fisher_batches: 16
+  eata_entropy_margin: null
+  eata_diversity_margin: 0.95
+
+runtime:
+  run_name: wt-eata

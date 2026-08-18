@@ -7,7 +7,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from .sam import SAM
+from .sar import SAR
 from .vida import inject_vida, is_vida_parameter, set_vida_scales
 
 
@@ -18,7 +18,14 @@ ADAPTATION_PARAMETER_SCOPES = (
     "backbone",
     "all",
 )
-GRADIENT_ADAPTATION_METHODS = {"tent", "eata", "sar", "cotta", "vida"}
+GRADIENT_ADAPTATION_METHODS = {
+    "tent",
+    "eata",
+    "sar",
+    "cotta",
+    "vida",
+    "continual_mae",
+}
 
 
 def softmax_entropy(logits: torch.Tensor) -> torch.Tensor:
@@ -48,7 +55,11 @@ def resolve_adaptation_parameter_scope(method: str, scope: str) -> str:
             )
         return "none"
     if scope == "default":
-        return "all" if method in {"cotta", "vida"} else "layernorm"
+        return (
+            "all"
+            if method in {"cotta", "vida", "continual_mae"}
+            else "layernorm"
+        )
     return scope
 
 
@@ -342,7 +353,7 @@ class SARAdapter(OnlineAdapter):
         parameters, names = configure_gradient_adaptation(
             self.model, parameter_scope
         )
-        self.optimizer = SAM(
+        self.optimizer = SAR(
             parameters,
             torch.optim.SGD,
             rho=rho,
@@ -820,11 +831,37 @@ def build_adapter(
     vida_augmentation_scale_std: float = 0.05,
     vida_augmentation_mask_probability: float = 0.0,
     vida_augmentation_shift_ratio: float = 0.0,
+    continual_mae_mask_ratio: float = 0.5,
+    continual_mae_augmentations: int = 10,
+    continual_mae_reconstruction_weight: float = 0.5,
+    continual_mae_restore_probability: float = 0.1,
+    continual_mae_augmentation_noise_std: float = 0.005,
+    continual_mae_augmentation_scale_std: float = 0.05,
+    continual_mae_augmentation_mask_probability: float = 0.0,
+    continual_mae_augmentation_shift_ratio: float = 0.0,
+    knn_neighbors: int = 5,
+    knn_reference_features: Optional[torch.Tensor] = None,
+    knn_reference_labels: Optional[torch.Tensor] = None,
 ) -> OnlineAdapter:
     method = method.lower()
     scope = resolve_adaptation_parameter_scope(method, parameter_scope)
     if method == "source":
         return SourceAdapter(model, device)
+    if method == "knn":
+        # The runner creates the labeled source feature bank after loading (or
+        # fitting) the source model, then hands it to this non-adaptive adapter.
+        from .knn import KNNAdapter
+
+        if knn_reference_features is None or knn_reference_labels is None:
+            raise ValueError("kNN requires labeled source reference features")
+        return KNNAdapter(
+            model,
+            device,
+            knn_reference_features,
+            knn_reference_labels,
+            num_classes,
+            knn_neighbors,
+        )
     if method == "tent":
         return TentAdapter(
             model, device, learning_rate, steps, weight_decay, scope
@@ -898,6 +935,30 @@ def build_adapter(
             vida_uncertainty_threshold,
             vida_uncertainty_scale,
             vida_augmentations,
+            augmentation,
+        )
+    if method == "continual_mae":
+        # Import here so continual_mae.py can reuse the public adapter base and
+        # helpers above without creating a module-initialization cycle.
+        from .continual_mae import ContinualMAEAdapter
+
+        augmentation = SignalAugment(
+            continual_mae_augmentation_noise_std,
+            continual_mae_augmentation_scale_std,
+            continual_mae_augmentation_mask_probability,
+            continual_mae_augmentation_shift_ratio,
+        )
+        return ContinualMAEAdapter(
+            model,
+            device,
+            learning_rate,
+            steps,
+            weight_decay,
+            scope,
+            continual_mae_mask_ratio,
+            continual_mae_augmentations,
+            continual_mae_reconstruction_weight,
+            continual_mae_restore_probability,
             augmentation,
         )
     raise ValueError(f"Unknown method: {method}")

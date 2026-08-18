@@ -19,7 +19,7 @@ the model between domains.
 
 - Loads `UniFreq-tiny`, `UniFreq-small`, or `UniFreq-base` directly from
   Hugging Face; no pretraining pipeline is included.
-- Implements Source-only, TENT, EATA, SAR, CoTTA, and ViDA for Transformer-based
+- Implements Source-only, source-reference kNN, TENT, EATA, SAR, CoTTA, ViDA, and Continual-MAE for Transformer-based
   vibration encoders.
 - Keeps target labels outside every adapter. Labels are read only by the
   evaluation meters after prediction.
@@ -48,11 +48,13 @@ Face and are downloaded on demand.
 | Method | Online objective | Default trainable parameters |
 |---|---|---|
 | `source` | No target update | None |
+| `knn` | Cosine kNN over a fixed labeled source-train reference bank | None |
 | `tent` | Entropy minimization | LayerNorm affine parameters |
 | `eata` | Reliable/diverse entropy + Fisher regularization | LayerNorm affine parameters |
 | `sar` | Reliable entropy with sharpness-aware updates | LayerNorm affine parameters |
 | `cotta` | EMA teacher consistency + stochastic restoration | All parameters |
 | `vida` | EMA consistency + high/low-rank ViDA with HKA | ViDA branches + all base parameters |
+| `continual_mae` | Frequency-bin distribution-aware masking + reconstruction + teacher consistency | All base parameters + MAE auxiliary parameters |
 
 The [ViDA](https://github.com/Yangsenqiao/vida) integration injects parallel
 low- and high-rank linear branches into the UniFreq backbone. Homeostatic
@@ -75,6 +77,7 @@ PHMT/
 └── FMCTTA/
     ├── fmctta/
     │   ├── adapters.py       # online CTTA algorithms
+    │   ├── knn.py            # source-reference kNN baseline
     │   ├── data.py           # source split and ordered target streams
     │   ├── model.py          # UniFreq + downstream classifier
     │   ├── runner.py         # complete CTTA protocol
@@ -168,13 +171,16 @@ samples from every class; domain 1 therefore uses 40 distinct samples per
 class, domain 2 uses 40, and domain 3 uses 60. For different allocations by
 occurrence, use for example `--target-samples-per-class '20;10;15;20;10;15;20'`.
 
-The same setup is available as an executable YAML configuration at
-[`configs/experiments/tent_frequency_repeated.yaml`](configs/experiments/tent_frequency_repeated.yaml).
-It inherits the shared values in [`configs/base.yaml`](configs/base.yaml), so
-the experiment file contains only parameters specific to this run:
+Complete YAML experiments for the custom PU and WT datasets in `data/ctta_custom`
+are organized in [`configs/PU`](configs/PU) and [`configs/WT`](configs/WT). Each
+directory provides Source-only, kNN, TENT, EATA, SAR, CoTTA, ViDA, and Continual-MAE configurations
+and a dataset-specific base file. See [`configs/README_zh.md`](configs/README_zh.md)
+for the layout, run order, and parameter reference. For example, train the PU
+source model before running TENT:
 
 ```bash
-python main.py --config configs/experiments/tent_frequency_repeated.yaml
+python main.py --config configs/PU/source.yaml
+python main.py --config configs/PU/tent.yaml
 ```
 
 Command-line options override YAML values.
@@ -182,16 +188,12 @@ Command-line options override YAML values.
 ### 2. Run continual test-time adaptation
 
 ```bash
-python main.py \
-  --dataset PU_Real \
-  --method tent \
-  --model-id bojian1/UniFreq-tiny \
-  --domains 3,2,0,1 \
-  --source-checkpoint outputs/PU_Real/source/pu-source-seed2025/source_checkpoint \
-  --run-name pu-tent
+python main.py --config configs/PU/tent.yaml
 ```
 
-Replace `tent` with `eata`, `sar`, `cotta`, or `vida`. For example:
+Replace `tent` with `knn`, `eata`, `sar`, `cotta`, `vida`, or `continual_mae`.
+The kNN baseline extracts source-train UniFreq features once and never consumes
+target labels or updates model parameters. For example:
 
 ```bash
 python main.py \
@@ -227,7 +229,8 @@ python main.py \
    re-predict the same batch for a post-adaptation diagnostic.
 6. Carry the adapted state into the next batch and next domain.
 7. Re-evaluate source validation data after each target domain to quantify
-   forgetting. This diagnostic never updates the adapter.
+   forgetting. This diagnostic never updates the adapter. For kNN, the source
+   validation split is excluded from its reference bank.
 
 `online` is the primary metric because it measures the prediction available
 before learning from the current batch. `post_adapt` is reported separately
@@ -253,9 +256,9 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-The tests cover target-label-free adapter calls, parameter scopes, all six
-methods, deterministic stream construction, source-only normalization, and
-safe checkpoint validation.
+The tests cover target-label-free adapter calls, parameter scopes, all methods,
+deterministic stream construction, source-only normalization, and safe
+checkpoint validation.
 
 ## Acknowledgements
 
