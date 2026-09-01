@@ -1,0 +1,46 @@
+# UniFreq FMCTTA profile transferred from OCTTA's dataset protocol.
+
+protocol:
+  stream_order: interleaved
+  stream_batch_size: 20
+  seed: 2025
+
+data:
+  dataset_manifest: data/ctta_custom/MCC5_Gearbox_1024point_custom.json
+  normalization: zscore
+  source_validation_ratio: 0.2
+  strict_data: false
+  allow_repeated_target_samples: false
+  max_source_per_class: null
+  max_target_per_domain: null
+  source_samples_per_class: ""
+  target_samples_per_class: ""
+
+model:
+  model_id: bojian1/UniFreq-tiny
+  model_revision: ""
+  cache_dir: ""
+  local_files_only: false
+  feature_branch: frequency
+  source_checkpoint: outputs/MCC5_Gearbox_1024point_custom/source/mcc5-gearbox-source-seed2025/source_checkpoint
+  classifier: linear
+  classifier_dropout: 0.0
+  source_epochs: 30
+  source_batch_size: 64
+  eval_batch_size: 128
+  source_learning_rate: 0.01
+  source_backbone_lr_scale: 0.01
+  source_weight_decay: 0.0001
+  source_gradient_clip: 1.0
+
+adaptation:
+  adaptation_learning_rate: 0.0025
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+  adaptation_parameter_scope: default
+
+runtime:
+  device: auto
+  workers: 0
+  output_dir: outputs
+

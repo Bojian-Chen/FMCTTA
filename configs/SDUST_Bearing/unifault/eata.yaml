@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Bearing/unifault/eata.yaml
+base:
+  - base.yaml
+  - ../../methods/eata.yaml
+
+runtime:
+  run_name: sdust-bearing-unifault-small-eata
+

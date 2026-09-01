@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifault/tent.yaml
+base:
+  - base.yaml
+  - ../../methods/tent.yaml
+
+runtime:
+  run_name: hust-gearbox-unifault-small-tent
+

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/unifault/vida.yaml
+base:
+  - base.yaml
+  - ../../methods/vida.yaml
+
+runtime:
+  run_name: pu-unifault-small-vida
+

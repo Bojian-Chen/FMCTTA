@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifault/knn.yaml
+base:
+  - base.yaml
+  - ../../methods/knn.yaml
+
+runtime:
+  run_name: hust-gearbox-unifault-small-knn
+

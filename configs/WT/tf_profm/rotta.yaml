@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/tf_profm/rotta.yaml
+base:
+  - base.yaml
+  - ../../methods/rotta.yaml
+
+runtime:
+  run_name: wt-tf-profm-rotta
+

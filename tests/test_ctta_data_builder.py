@@ -5,6 +5,7 @@ import numpy as np
 from scipy.io import loadmat
 
 from ctta_data_builder import core
+from ctta_data_builder.build import build_parser, _normalize_legacy_dashed_options
 from ctta_data_builder.core import (
     BuildConfig,
     _selection_indices,
@@ -12,6 +13,7 @@ from ctta_data_builder.core import (
     config_from_mapping,
 )
 from ctta_data_builder.datasets import (
+    DATASETS,
     DatasetAdapter,
     DomainDefinition,
     WindowBatch,
@@ -21,9 +23,38 @@ from fmctta.config import dataset_spec_from_manifest
 from fmctta.data import FaultDataModule
 
 
+def test_builder_cli_uses_underscore_options_and_accepts_legacy_dash_aliases() -> None:
+    parser = build_parser()
+    canonical = parser.parse_args(["--samples_per_class", "7", "--validate_only"])
+    legacy = parser.parse_args(
+        _normalize_legacy_dashed_options(
+            ["--samples-per-class", "8", "--validate-only"], parser
+        )
+    )
+
+    assert canonical.samples_per_class == 7
+    assert canonical.validate_only is True
+    assert legacy.samples_per_class == 8
+    assert legacy.validate_only is True
+    assert "--samples_per_class" in parser.format_help()
+    assert "--samples-per-class" not in parser.format_help()
+
+
+def test_builder_supports_pu_wt_hust_and_mcc5() -> None:
+    assert {
+        "PU",
+        "WT",
+        "HUST-Gearbox",
+        "MCC5-Gearbox",
+        "MCC5-Motor",
+        "SDUST-Bearing",
+        "SDUST-Gear",
+    }.issubset(DATASETS)
+
+
 def test_native_rate_windowing_has_no_overlap_or_resampling() -> None:
     signal = np.arange(2 * 25, dtype=np.float32).reshape(2, 25)
-    batch = _window_signal(signal, 100, "recording")
+    batch = _window_signal(signal, 100, "recording", window_size_points=10)
 
     assert batch.values.shape == (2, 2, 10)
     assert np.array_equal(batch.values[0], signal[:, :10])
@@ -96,10 +127,14 @@ def test_build_reindexes_in_configured_order(tmp_path: Path, monkeypatch) -> Non
         def validate_selection(self, raw_root, classes, domains):
             return {}
 
-        def load_windows(self, raw_root, class_name, domain_name):
+        def load_windows(
+            self, raw_root, class_name, domain_name, window_size_points
+        ):
             value = self.domain_names.index(domain_name) * 10
             value += self.class_names.index(class_name)
-            values = np.full((128, 1, 10), value, dtype=np.float32)
+            values = np.full(
+                (128, 1, window_size_points), value, dtype=np.float32
+            )
             return WindowBatch(
                 values,
                 np.arange(128, dtype=np.float64) / 10,
@@ -114,6 +149,7 @@ def test_build_reindexes_in_configured_order(tmp_path: Path, monkeypatch) -> Non
         classes=("b", "a"),
         domains=("d1", "d0"),
         samples_per_class=120,
+        window_size_points=10,
         name="ordered",
     )
 

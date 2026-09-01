@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/unifault/tca.yaml
+base:
+  - base.yaml
+  - ../../methods/tca.yaml
+
+runtime:
+  run_name: wt-unifault-small-tca
+

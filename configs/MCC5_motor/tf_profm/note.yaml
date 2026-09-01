@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_motor/tf_profm/note.yaml
+base:
+  - base.yaml
+  - ../../methods/note.yaml
+
+runtime:
+  run_name: mcc5-motor-tf-profm-note
+

@@ -19,9 +19,11 @@ from .adapters import (
 )
 from .config import (
     DATASETS,
+    parse_domains,
     parse_source_samples_per_class,
     parse_target_samples_per_class,
     resolve_sequence,
+    resolve_target_domains,
 )
 from .data import FaultDataModule
 from .metrics import ClassificationMeter
@@ -34,6 +36,7 @@ from .source import (
     save_checkpoint,
     train_source,
 )
+from .ttt import build_ttt_head
 
 
 def set_seed(seed: int) -> None:
@@ -141,8 +144,18 @@ def run_experiment(args) -> Dict[str, Any]:
     set_seed(args.seed)
     device = resolve_device(args.device)
     spec = DATASETS[args.dataset]
-    sequence = resolve_sequence(spec, args.domains)
-    source_domain, target_domains = sequence[0], sequence[1:]
+    if args.source_domains:
+        source_domains = parse_domains(args.source_domains)
+        if not args.domains:
+            raise ValueError(
+                "--domains must explicitly specify at least one target domain "
+                "when --source_domains is used"
+            )
+        target_domains = resolve_target_domains(spec, args.domains)
+    else:
+        sequence = resolve_sequence(spec, args.domains)
+        source_domains, target_domains = (sequence[0],), sequence[1:]
+    source_domain = source_domains[0]
     source_samples_per_class = parse_source_samples_per_class(
         args.source_samples_per_class, spec.num_classes
     )
@@ -170,13 +183,14 @@ def run_experiment(args) -> Dict[str, Any]:
     data = FaultDataModule(
         spec=spec,
         data_root=Path(args.data_root),
-        source_domain=source_domain,
+        source_domains=source_domains,
         target_domains=target_domains,
         normalization=args.normalization,
         source_validation_ratio=args.source_validation_ratio,
         stream_order=stream_order,
         seed=args.seed,
         strict_data=args.strict_data,
+        allow_repeated_target_samples=args.allow_repeated_target_samples,
         max_source_per_class=args.max_source_per_class,
         max_target_per_domain=args.max_target_per_domain,
         source_samples_per_class=source_samples_per_class,
@@ -204,7 +218,7 @@ def run_experiment(args) -> Dict[str, Any]:
         device=device,
     )
 
-    model, unifreq_config = build_model(
+    model, foundation_config = build_model(
         args.model_id,
         spec.num_classes,
         classifier=args.classifier,
@@ -214,15 +228,43 @@ def run_experiment(args) -> Dict[str, Any]:
         cache_dir=args.cache_dir or None,
         local_files_only=args.local_files_only,
         feature_branch=args.feature_branch,
+        foundation_model=args.foundation_model,
+        pretrained_checkpoint=args.pretrained_checkpoint,
+        foundation_model_size=args.foundation_model_size,
+        model_input_length=args.model_input_length,
+        model_input_normalization=args.model_input_normalization,
+        input_channels=spec.num_channels,
     )
     model.to(device)
+    ttt_auxiliary_head = (
+        build_ttt_head(model.feature_dim).to(device)
+        if args.method.lower() == "ttt"
+        else None
+    )
+    ttt_extra_modules = (
+        {"ttt_auxiliary_head": ttt_auxiliary_head}
+        if ttt_auxiliary_head is not None
+        else None
+    )
+    effective_model_id = args.model_id if args.foundation_model == "unifreq" else ""
+    effective_revision = (
+        args.model_revision or None
+        if args.foundation_model == "unifreq"
+        else None
+    )
+    effective_feature_branch = model.feature_branch
     checkpoint_expected = {
         "dataset": args.dataset,
         "source_domain": source_domain,
-        "model_id": args.model_id,
-        "model_revision": args.model_revision or None,
+        "source_domains": list(source_domains),
+        "foundation_model": args.foundation_model,
+        "foundation_architecture": foundation_config.architecture,
+        "model_input_length": foundation_config.input_length,
+        "model_input_normalization": foundation_config.input_normalization,
+        "model_id": effective_model_id,
+        "model_revision": effective_revision,
         "classifier": args.classifier,
-        "feature_branch": args.feature_branch,
+        "feature_branch": effective_feature_branch,
         "source_samples_per_class": data.sample_selection[
             "source_samples_per_class"
         ],
@@ -234,8 +276,18 @@ def run_experiment(args) -> Dict[str, Any]:
     checkpoint_metadata: Dict[str, object]
     if args.source_checkpoint:
         checkpoint_metadata = load_checkpoint(
-            Path(args.source_checkpoint), model, checkpoint_expected
+            Path(args.source_checkpoint),
+            model,
+            checkpoint_expected,
+            extra_modules=ttt_extra_modules,
         )
+        if len(source_domains) > 1 and checkpoint_metadata.get(
+            "source_domains"
+        ) != list(source_domains):
+            raise ValueError(
+                "Source checkpoint is incompatible: a multi-source run requires "
+                f"source_domains={list(source_domains)} in its metadata"
+            )
         print(f"Loaded source checkpoint: {args.source_checkpoint}")
     else:
         source_result = train_source(
@@ -249,23 +301,37 @@ def run_experiment(args) -> Dict[str, Any]:
             backbone_lr_scale=args.source_backbone_lr_scale,
             weight_decay=args.source_weight_decay,
             gradient_clip=args.source_gradient_clip,
+            ttt_auxiliary_head=ttt_auxiliary_head,
+            ttt_auxiliary_weight=args.ttt_source_auxiliary_weight,
         )
         source_history = source_result.history
         checkpoint_metadata = {
             **checkpoint_expected,
-            "unifreq_config": unifreq_config.to_dict(),
+            "foundation_config": foundation_config.to_dict(),
             "best_validation_macro_f1": source_result.best_macro_f1,
             "best_epoch": source_result.best_epoch,
         }
+        if ttt_auxiliary_head is not None:
+            checkpoint_metadata.update(
+                {
+                    "ttt_auxiliary_task": "four_way_circular_shift_prediction",
+                    "ttt_source_auxiliary_weight": args.ttt_source_auxiliary_weight,
+                }
+            )
         checkpoint_dir = run_dir / "source_checkpoint"
-        save_checkpoint(checkpoint_dir, model, checkpoint_metadata)
+        save_checkpoint(
+            checkpoint_dir,
+            model,
+            checkpoint_metadata,
+            extra_modules=ttt_extra_modules,
+        )
         print(f"Saved source checkpoint: {checkpoint_dir}")
 
     source_model_validation = evaluate_supervised(
         model, source_validation_loader, device, spec.num_classes
     )
     print(
-        f"Source domain {source_domain} validation accuracy: "
+        f"Source domains {list(source_domains)} validation accuracy: "
         f"{source_model_validation['accuracy']:.2f}%"
     )
 
@@ -306,6 +372,33 @@ def run_experiment(args) -> Dict[str, Any]:
         eata_fisher_alpha=args.eata_fisher_alpha,
         eata_entropy_margin=args.eata_entropy_margin,
         eata_diversity_margin=args.eata_diversity_margin,
+        note_memory_size=args.note_memory_size,
+        note_update_interval=args.note_update_interval,
+        note_temperature=args.note_temperature,
+        rotta_memory_size=args.rotta_memory_size,
+        rotta_update_frequency=args.rotta_update_frequency,
+        rotta_nu=args.rotta_nu,
+        rotta_bn_alpha=args.rotta_bn_alpha,
+        rotta_lambda_t=args.rotta_lambda_t,
+        rotta_lambda_u=args.rotta_lambda_u,
+        rotta_augmentation_noise_std=args.rotta_augmentation_noise_std,
+        rotta_augmentation_scale_std=args.rotta_augmentation_scale_std,
+        rotta_augmentation_mask_probability=(
+            args.rotta_augmentation_mask_probability
+        ),
+        rotta_augmentation_shift_ratio=args.rotta_augmentation_shift_ratio,
+        tca_teacher_momentum=args.tca_teacher_momentum,
+        tca_centroid_momentum=args.tca_centroid_momentum,
+        tca_topology_weight_momentum=args.tca_topology_weight_momentum,
+        tca_alignment_weight=args.tca_alignment_weight,
+        tca_topology_weight=args.tca_topology_weight,
+        tca_uniformity_temperature=args.tca_uniformity_temperature,
+        tca_symmetric_alpha=args.tca_symmetric_alpha,
+        tca_augmentation_noise_std=args.tca_augmentation_noise_std,
+        tca_augmentation_scale_std=args.tca_augmentation_scale_std,
+        tca_augmentation_mask_probability=args.tca_augmentation_mask_probability,
+        tca_augmentation_shift_ratio=args.tca_augmentation_shift_ratio,
+        ttt_auxiliary_head=ttt_auxiliary_head,
         sar_rho=args.sar_rho,
         sar_entropy_margin=args.sar_entropy_margin,
         sar_reset_threshold=args.sar_reset_threshold,
@@ -445,6 +538,10 @@ def run_experiment(args) -> Dict[str, Any]:
             "name": "online_continual_test_time_adaptation",
             "source_domain": source_domain,
             "source_domain_name": spec.domain_name(source_domain),
+            "source_domains": list(source_domains),
+            "source_domain_names": [
+                spec.domain_name(domain) for domain in source_domains
+            ],
             "target_domains": list(target_domains),
             "target_domain_names": [
                 spec.domain_name(domain) for domain in target_domains
@@ -452,7 +549,9 @@ def run_experiment(args) -> Dict[str, Any]:
             "single_pass": True,
             "reset_between_domains": False,
             "target_labels_used_for_adaptation": False,
-            "primary_prediction_stage": "online_pre_adapt",
+            "primary_prediction_stage": (
+                "post_adapt" if args.method.lower() == "ttt" else "online_pre_adapt"
+            ),
             "post_adapt_reprediction": True,
             "post_adapt_reprediction_updates_model": False,
             "stream_order": stream_order,
@@ -467,10 +566,12 @@ def run_experiment(args) -> Dict[str, Any]:
             "sample_selection": data.sample_selection,
         },
         "model": {
-            "model_id": args.model_id,
-            "revision": args.model_revision or None,
+            "foundation_model": args.foundation_model,
+            "foundation_config": foundation_config.to_dict(),
+            "model_id": effective_model_id or None,
+            "revision": effective_revision,
             "classifier": args.classifier,
-            "feature_branch": args.feature_branch,
+            "feature_branch": effective_feature_branch,
             "feature_dim": model.feature_dim,
         },
         "method": args.method.lower(),

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Bearing/unifault/tca.yaml
+base:
+  - base.yaml
+  - ../../methods/tca.yaml
+
+runtime:
+  run_name: sdust-bearing-unifault-small-tca
+

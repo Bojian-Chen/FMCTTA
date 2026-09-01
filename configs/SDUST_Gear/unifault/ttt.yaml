@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Gear/unifault/ttt.yaml
+base:
+  - base.yaml
+  - ../../methods/ttt.yaml
+
+runtime:
+  run_name: sdust-gear-unifault-small-ttt
+

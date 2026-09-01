@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/tf_profm/tent.yaml
+base:
+  - base.yaml
+  - ../../methods/tent.yaml
+
+runtime:
+  run_name: pu-tf-profm-tent
+

@@ -1,0 +1,17 @@
+# Run: python main.py --config configs/WT/note.yaml
+# Run after configs/WT/source.yaml.
+base: base.yaml
+
+protocol:
+  method: note # ["source", "knn", "tent", "note", "eata", "sar", "cotta", "vida", "continual_mae"]
+
+adaptation:
+  adaptation_learning_rate: 0.0001
+  adaptation_parameter_scope: layernorm # ["default", "layernorm", "classifier", "backbone", "all"]
+  adaptation_steps: 1
+  note_memory_size: 64
+  note_update_interval: 64
+  note_temperature: 1.0
+
+runtime:
+  run_name: wt-note

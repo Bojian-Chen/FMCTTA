@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/tf_profm/sar.yaml
+base:
+  - base.yaml
+  - ../../methods/sar.yaml
+
+runtime:
+  run_name: hust-gearbox-tf-profm-sar
+

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_motor/tf_profm/vida.yaml
+base:
+  - base.yaml
+  - ../../methods/vida.yaml
+
+runtime:
+  run_name: mcc5-motor-tf-profm-vida
+

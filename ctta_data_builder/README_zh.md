@@ -1,156 +1,254 @@
 # 可配置 CTTA 数据集构建器
 
-本目录为 `PU`、`WT`、`MCC5-Motor` 和 `HUST-Gearbox` 单独提供原始数据到
-FMCTTA `MAT` 文件的构建代码。读取通道与
-`PHMFD-data-prepocessing/data_scripts` 保持一致。数据制作阶段只给每个工况分配
-`0, 1, 2, ...` 域标签，不区分源域、目标域，也不决定 CTTA 漂移顺序；运行实验时
-再通过 `main.py --domains` 指定顺序，该参数的第一个编号才是有标签源域。
+本目录提供 PU、WT、SDUST-Bearing、SDUST-Gear、MCC5-Gearbox、MCC5-Motor 和 HUST-Gearbox 的
+原始数据读取与 FMCTTA MAT 构建
+代码。数据制作阶段只分配类别和数值域标签；源域、目标域及漂移顺序由运行实验时的
+`main.py --domains` 决定。
 
-## 固定的数据约束
+## 切窗约束
 
-所有样本都是原采样率下连续、互不重叠的 `0.1 s` 窗口。构建器没有重采样代码，
-也不做归一化；需要归一化时仍由 FMCTTA 使用源域训练集统计量完成。
+- 每条样本包含原始采样率下连续的 `window_size_points` 个点，默认 1024。
+- 步长等于窗口点数，因此窗口不重叠。
+- 不重采样、不插值、不归一化。
+- `window_seconds` 和 `stride_seconds` 按 `window_size_points / 采样率` 写入元数据。
+- MCC5-Motor 使用原生 90 秒轨迹：稳态 1 为 10–30 秒和 60–80 秒，稳态 2
+  为 35–55 秒。
+- MCC5-Gearbox 保持原生 60 秒轨迹：稳态 1 为 10–20 秒和 40–50 秒，稳态 2
+  为 25–35 秒；不会补造 60–90 秒数据。
+- 每条有效 MCC5 circulation 记录都制作成连续三个域：稳态 1 候选、稳态 2 候选、
+  完整时序 target。Gearbox 因此有 24 个 source 候选和 12 个 target 流；Motor
+  有 22 个 source 候选和 11 个 target 流。
 
-| 数据集 | 原采样率 | 每条样本点数 | 通道 |
+| 数据集 | 原采样率 | 默认 1024 点时长 | 通道 |
 |---|---:|---:|---|
-| PU | 64,000 Hz | 6,400 | 1 |
-| WT | 48,000 Hz | 4,800 | 2（x/y） |
-| MCC5-Motor | 12,800 Hz | 1,280 | 3（电机 x/y/z） |
-| HUST-Gearbox | 25,600 Hz | 2,560 | 3（最后三个振动通道） |
+| PU | 64,000 Hz | 0.016 s | 1 |
+| WT | 48,000 Hz | 约 0.02133 s | 2（x/y） |
+| SDUST-Bearing | 25,600 Hz | 0.04 s | 6 |
+| SDUST-Gear | 25,600 Hz | 0.04 s | 6 |
+| MCC5-Gearbox | 12,800 Hz | 0.08 s | 6（电机 x/y/z、齿轮箱 x/y/z） |
+| MCC5-Motor | 12,800 Hz | 0.08 s | 3（电机 x/y/z） |
+| HUST-Gearbox | 25,600 Hz | 0.04 s | 3（最后三个振动通道） |
 
-`MCC5-Motor` 的 `steady_1000rpm_20Nm` 域沿用原代码中的两个稳态平台
-`15-25 s` 和 `65-75 s`，其他循环工况域使用相应记录的完整时间顺序。已知
-原始文件缺类/重复的
-`speed_3000rpm_20Nm` 不进入安全目录，避免猜测标签。
+UniFreq 的处理器支持不同长度的一维信号，因此采样点数不要求为完全平方数；切换点数后
+需使用相同数据配置重新训练源域分类器。
 
-## 查看可用类别与域
-
-在 FMCTTA 根目录执行：
+## 查看目录与验证配置
 
 ```bash
 python -m ctta_data_builder.build --catalog PU
-python -m ctta_data_builder.build --catalog WT
+python -m ctta_data_builder.build --catalog WT --window_size_points 2048
+python -m ctta_data_builder.build --catalog SDUST-Bearing
+python -m ctta_data_builder.build --catalog SDUST-Gear
+python -m ctta_data_builder.build --catalog MCC5-Gearbox
 python -m ctta_data_builder.build --catalog MCC5-Motor
-python -m ctta_data_builder.build --catalog HUST-Gearbox
-```
 
-## 定制配置
-
-复制 `configs/` 中对应的 JSON，然后修改：
-
-- `classes`：所选类别及其顺序；生成标签按列表顺序重新编号为 `0..K-1`。
-- `domains`：显式的“数值域标签 → 原始工况”映射。标签必须连续使用
-  `0..D-1`，但这些编号本身不表示源域或目标域。
-- `samples_per_class`：每个“域 × 类别”的样本数，可设置为任意不超过所选组合
-  可用窗口数的整数。为匹配 FMCTTA 当前的平衡域块读取方式，所有组合使用同一个
-  数值，不能给不同域或类别分别设置不同数量。
-- `selection`：`uniform` 按时间均匀选取，`head` 取最早的窗口；两者都不会打乱
-  采集顺序，也不会制造重叠窗口。
-- `target_stream_order`：FMCTTA 读取目标域时使用 `interleaved`、
-  `class_block` 或 `shuffled`。推荐 `interleaved`，它按时间位置轮流送入各类别，
-  同时保持每类内部的采集顺序。
-- `name`：FMCTTA 运行时显示的数据集名。
-- `raw_root`、`output`：相对路径会相对于 JSON 文件所在目录解析。
-
-例如只用 PU 的 4 类，并给三个工况分配域标签：
-
-```json
-{
-  "dataset": "PU",
-  "name": "PU_4class_N15_to_N09",
-  "raw_root": "/home/xyc3090/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
-  "output": "../../data/ctta_custom/PU_4class_N15_to_N09.mat",
-  "classes": ["K001", "KA04", "KB23", "KI14"],
-  "domains": {
-    "0": "N15_M07_F10",
-    "1": "N15_M01_F10",
-    "2": "N09_M07_F10"
-  },
-  "samples_per_class": 200,
-  "selection": "uniform",
-  "target_stream_order": "interleaved"
-}
-```
-
-先做快速路径检查（不读取大型信号文件）：
-
-```bash
 python -m ctta_data_builder.build \
   --config ctta_data_builder/configs/pu.json \
-  --validate-only
+  --validate_only
 ```
 
-正式构建：
+`validate_only` 只检查配置和原始路径，不读取大型信号；每个域×类别组合实际可用的窗口
+数会在正式构建时检查。
 
-```bash
-python -m ctta_data_builder.build \
-  --config ctta_data_builder/configs/pu.json
-```
+## JSON 配置
 
-CLI 可以临时覆盖常用字段，无需修改 JSON：
+- `dataset`：`PU`、`WT`、`SDUST-Bearing`、`SDUST-Gear`、`MCC5-Gearbox`、`MCC5-Motor` 或
+  `HUST-Gearbox`。
+- `name`：动态 FMCTTA 数据集名称。
+- `raw_root`、`output`：原始数据根目录与输出 MAT；相对路径相对于 JSON 文件解析。
+- `classes`：类别及顺序，输出标签重新编号为 `0..K-1`。
+- `channels`：按 `--catalog` 显示的名字选择输出通道及顺序；省略时保留全部通道。
+- `domains`：连续数值标签到原始工况的映射，输出域编号为 `0..D-1`。
+- `samples_per_class`：每个域、每个类别选取的相同样本数，至少为 2；设为
+  `null` 时保存每个域中全部完整、互不重叠的窗口。完整模式允许不同域具有不同长度，
+  但同一域内各类别必须等长，才能保持工况时间对齐。
+- `window_size_points`：每条样本的采样点数，正整数，默认 1024。
+- `selection`：`head` 取最早窗口，`uniform` 在可用时间序列中均匀选择。
+- `target_stream_order`：运行时的默认 `class_block`、`interleaved` 或 `shuffled`。
+
+CLI 可临时覆盖常用字段：
 
 ```bash
 python -m ctta_data_builder.build \
   --config ctta_data_builder/configs/pu.json \
   --classes K001,KA04,KB23,KI14 \
+  --channels vibration \
   --domains N15_M07_F10,N15_M01_F10,N09_M07_F10 \
-  --samples-per-class 500 \
+  --samples_per_class 500 \
+  --window_size_points 1024 \
   --output data/ctta_custom/PU_demo.mat
 ```
 
-这里 CLI 的 `--domains A,B,C` 只是 `0=A, 1=B, 2=C` 的简写，不代表运行时
-顺序。建议正式实验配置直接使用 JSON 对象，使标签映射一目了然。
+也可以用 `--all_windows` 临时覆盖 JSON 中的固定样本数。完整数据通常超过 MATLAB v5
+单矩阵 2 GiB 限制，构建器会边读取边写入 HDF5-backed `.mat`，不会在内存中复制整个
+输出。
 
-### 样本数量上限
+输出已存在时默认拒绝覆盖；确认替换时添加 `--overwrite`。
 
-在当前原始数据和固定的 `0.1 s` 非重叠窗口协议下，默认全域配置的平衡上限为：
+## 已迁移的 OCTTA 1024 点数据
 
-| 数据集 | 每个域、每个类最多可取 | 示例配置默认值 |
-|---|---:|---:|
-| PU | 780 | 200 |
-| WT | 200 | 200 |
-| MCC5-Motor | 200 | 200 |
-| HUST-Gearbox | 102 | 102 |
+`data/ctta_custom/` 已包含从 OCTTA 迁移并转换为 `fmctta_spec` 的六套成品数据：
 
-MCC5-Motor 的 200 上限来自 `steady_1000rpm_20Nm` 域；如果配置中不选择该域，
-其他完整循环记录通常可提供 900 个窗口。构建时会逐组合检查真实可用数量，超过
-任一所选组合上限会直接报错，不会使用重叠窗口补足。
+| 数据集 | 成品名称 | 单条时长 |
+| --- | --- | ---: |
+| PU | `PU_1024point_custom` | 0.016 s |
+| WT | `WT_1024point_custom` | 约 0.0213 s |
+| SDUST-Bearing | `SDUST_Bearing_1024point_custom` | 0.04 s |
+| SDUST-Gear | `SDUST_Gear_1024point_custom` | 0.04 s |
+| MCC5-Gearbox | `MCC5_Gearbox_1024point_custom` | 0.08 s |
+| MCC5-Motor | `MCC5_Motor_1024point_custom` | 0.08 s |
 
-例如 PU 可以扩大为每域每类 500 条：
+这些名称中的 `1024point` 表示每条样本固定为 1024 个原始采样点；由于各数据集采样率
+不同，它不等于统一的秒数。PU、WT、SDUST、MCC5 的实验基础配置均可直接加载对应
+manifest。已有的 `*_0p1s_custom` 文件继续保留，与 1024 点版本并存。
+
+## 各数据集构建 0.1 秒版本
+
+不同数据集必须按各自原始采样率换算点数。下面的样本数是所有所选域、所有类别都可用的
+最大均衡数量；每条命令均采用原始采样率、不重叠切窗和 `uniform` 选择：
+
+| 数据集 | 采样率 | 0.1 秒点数 | 每域每类样本数 |
+| --- | ---: | ---: | ---: |
+| PU | 64,000 Hz | 6,400 | 780 |
+| WT | 48,000 Hz | 4,800 | 200 |
+| SDUST-Bearing | 25,600 Hz | 2,560 | 410 |
+| SDUST-Gear | 25,600 Hz | 2,560 | 210 |
+| MCC5-Gearbox（36 域） | 12,800 Hz | 1,280 | 100 |
+| MCC5-Motor（33 域） | 12,800 Hz | 1,280 | 200 |
+| HUST-Gearbox | 25,600 Hz | 2,560 | 102 |
+
+```bash
+# PU
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/pu_1024.json \
+  --window_size_points 6400 --samples_per_class 780 \
+  --name PU_0p1s_custom \
+  --output data/ctta_custom/PU_0p1s_custom.mat
+
+# WT
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/wt_1024.json \
+  --window_size_points 4800 --samples_per_class 200 \
+  --name WT_0p1s_custom \
+  --output data/ctta_custom/WT_0p1s_custom.mat
+
+# SDUST-Bearing
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/sdust_bearing.json \
+  --window_size_points 2560 --samples_per_class 410 \
+  --name SDUST_Bearing_0p1s_custom \
+  --output data/ctta_custom/SDUST_Bearing_0p1s_custom.mat
+
+# SDUST-Gear
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/sdust_gear.json \
+  --window_size_points 2560 --samples_per_class 210 \
+  --name SDUST_Gear_0p1s_custom \
+  --output data/ctta_custom/SDUST_Gear_0p1s_custom.mat
+
+# MCC5-Gearbox：使用当前完整的 36 域协议
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/mcc5_gearbox.json \
+  --window_size_points 1280 --samples_per_class 100 \
+  --name MCC5_Gearbox_36domains_0p1s_custom \
+  --output data/ctta_custom/MCC5_Gearbox_36domains_0p1s_custom.mat
+
+# MCC5-Motor：使用当前完整的 33 域协议；名称避免与旧 11 域文件混淆
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/mcc5_motor.json \
+  --window_size_points 1280 --samples_per_class 200 \
+  --name MCC5_Motor_33domains_0p1s_custom \
+  --output data/ctta_custom/MCC5_Motor_33domains_0p1s_custom.mat
+
+# HUST-Gearbox 的 JSON 已经是 0.1 秒配置
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/hust_gearbox.json
+```
+
+若同名输出已存在，构建器会安全退出；确认需要替换时才在对应命令末尾添加
+`--overwrite`。MCC5-Motor 的旧 11 域 0.1 秒协议仍可用
+`ctta_data_builder/configs/mcc5_motor_0p1s_legacy.json` 单独构建。
+
+## SDUST 类别与工况
+
+两个 SDUST 适配器都从原始 MAT 的 `Signal.y_values.values` 读取 6 个通道，并根据 MAT
+内的 `function_record.name` 命名。Bearing 为 `upper_z/upper_y/upper_x` 和
+`lower_z/lower_y/lower_x`；Gear 为 `left_z/left_y/left_x` 和
+`right_z/right_y/right_x`。当前 JSON 分别输出上测点三轴
+`upper_x/upper_y/upper_z` 和单通道 `left_z`；可将
+`channels` 改为例如 `["upper_x", "lower_x"]`，也可临时传
+`--channels upper_x,lower_x`。通道选择只改变输出，不做通道融合。
+
+- `SDUST-Bearing`：10 类；包含 1000、1500、1800、2000、2500、3000 rpm 六个
+  固定转速与 0、20、40、60 N 四个负载的完整组合，共 24 个固定域；另有
+  `800~1500`、`1000~2000`、`1500~2500` rpm 三个变转速区间与四个负载的组合，
+  共 12 个时变域。合计 36 域。原始文件对区间分隔符同时使用 `~` 和 `-`，读取器会
+  统一识别。
+- `SDUST-Gear`：7 类，适配器支持负载 0.5 A、采集序号 1 下的 1000、1500、1800、
+  2000、2500 rpm。当前原始目录中部分故障缺少 1000/2500 rpm 的 0.5 A 文件，因此
+  默认配置选取所有 7 类都完整的 1500、1800、2000 rpm 三个固定域；此外直接读取
+  5 个转速下 `0→0.2A`、`0→0.35A`、`0→0.5A` 的 15 个变负载域，以及 `flu flu`
+  转速/负载共同波动域，共 19 域。时变域的两次原始采集都会保留到可选窗口池中。
+
+完整的类别、通道、Domain ID、时变工况与建议实验协议见
+[SDUST online CTTA 数据协议](../docs/SDUST_ZH.md)。
 
 ```bash
 python -m ctta_data_builder.build \
-  --config ctta_data_builder/configs/pu.json \
-  --samples-per-class 500 \
-  --output data/ctta_custom/PU_500.mat
+  --config ctta_data_builder/configs/sdust_bearing.json \
+  --validate_only
+
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/sdust_bearing.json
+
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/sdust_gear.json \
+  --channels left_x,right_x
 ```
 
-实际数量会同时写入 MAT 的 `samples_per_class` 和 JSON 的 `fmctta_spec`。FMCTTA
-通过 `--dataset-manifest` 读取该值，因此不需要同步手改 `fmctta/config.py`。
+## MCC5 可选稳态源域协议
 
-输出已存在时默认拒绝覆盖；确认替换时显式加 `--overwrite`。
+```bash
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/mcc5_gearbox.json
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/mcc5_motor.json
+```
 
-## 输出内容
+域按每条原始 circulation 记录三元排列：`3k` 是稳态 1 候选，`3k+1` 是稳态 2
+候选，`3k+2` 是该记录的完整时序 target。domain 0/1 只是默认示例，不是固定源域。
+Gearbox 可从 24 个候选域中选择，Motor 可从 22 个候选域中选择，也支持多个候选联合
+监督训练。
+
+为防止原始记录泄漏，若选了 `3k` 或 `3k+1` 作为 source，就不能再把 `3k+2` 放入
+target。manifest 会写入 `source_candidate_domains`、`target_stream_domains`、
+`recording_group` 和推荐默认组合；`FaultDataModule` 也会在运行前检查同组冲突。
+完整 ID 表见 [Gearbox 协议](../docs/MCC5_THU_GEARBOX_ZH.md) 与
+[Motor 协议](../docs/MCC5_THU_MOTOR_ZH.md)。
+
+## 输出
 
 每次构建同时生成：
 
-- `*.mat`：`data`、`label`、`domain`、原始类别/域编号、窗口起始时间、原始记录
-  编号及名称等数组。存储顺序固定为“域 → 类别 → 采集时间”，符合
-  `FaultDataModule` 的平衡域块要求。
-- `*.json`：完整类别/域标签映射、采样约束、每个组合的可用/选中窗口数和可直接
-  加载的 `fmctta_spec`；其中不预设源域和目标域角色。
+- `*.mat`：`data`、`label`、`domain`、原始类别/域编号、窗口起始秒、序列索引、记录
+  编号、点数/秒数/采样率等元数据。顺序固定为“域 → 类别 → 采集时间”。
+- `*.json`：完整映射、采样约束、每个组合的可用/选中窗口数，以及可被 FMCTTA 动态
+  加载的 `fmctta_spec`。
 
-直接运行生成的自定义数据集：
+当任意数组超过 MATLAB v5 的 2 GiB 单矩阵上限时，构建器会自动将 `.mat` 写成 HDF5
+容器，并在 manifest 中标注 `storage_format: hdf5`。FMCTTA 会自动读取这种大文件；它需要
+`h5py`（已列入 `requirements.txt`）。
+
+运行生成的数据：
 
 ```bash
 python main.py \
-  --dataset-manifest data/ctta_custom/PU_0p1s_custom.json \
-  --domains 3,2,0,1 \
+  --dataset_manifest data/ctta_custom/PU_1024point_custom.json \
+  --domains 0,1,2,3 \
   --method tent \
-  --model-id bojian1/UniFreq-tiny \
-  --run-name pu-custom-tent
+  --feature_branch frequency
 ```
 
-`--dataset-manifest` 会自动读取类别数、通道数和域标签映射，因此无需再改
-`fmctta/config.py`。实验的源域及目标漂移序列只由 `--domains` 决定：例如
-`--domains 3,2,0,1` 表示域 `3` 是有标签源域，目标流依次经过域 `2、0、1`。
+manifest 只描述有哪些域。未设置 `source_domains` 时，`domains` 的第一个域是有标签源域，
+后续位置为无标签目标流；设置 `source_domains` 后，它独立指定一个或多个有标签源域，
+此时 `domains` 只表示目标流及其在线顺序。

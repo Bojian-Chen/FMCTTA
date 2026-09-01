@@ -1,0 +1,1302 @@
+{
+  "format_version": 1,
+  "dataset": "SDUST-Gear",
+  "name": "SDUST_Gear_1024point_custom",
+  "raw_root": "/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "mat_file": "/home/xyc3090/data1/PHMT/FMCTTA/data/ctta_custom/SDUST_Gear_1024point_custom.mat",
+  "sampling_frequency_hz": 25600,
+  "window_size_points": 1024,
+  "window_seconds": 0.04,
+  "stride_points": 1024,
+  "stride_seconds": 0.04,
+  "overlap": false,
+  "resampling": "none",
+  "normalization": "none",
+  "channels": [
+    "left_z"
+  ],
+  "num_channels": 1,
+  "classes": [
+    {
+      "label": 0,
+      "name": "NC",
+      "original_label": 0
+    },
+    {
+      "label": 1,
+      "name": "太阳断裂",
+      "original_label": 1
+    },
+    {
+      "label": 2,
+      "name": "太阳点蚀",
+      "original_label": 2
+    },
+    {
+      "label": 3,
+      "name": "太阳磨损",
+      "original_label": 3
+    },
+    {
+      "label": 4,
+      "name": "行星断裂",
+      "original_label": 4
+    },
+    {
+      "label": 5,
+      "name": "行星点蚀",
+      "original_label": 5
+    },
+    {
+      "label": 6,
+      "name": "行星磨损",
+      "original_label": 6
+    }
+  ],
+  "domains": [
+    {
+      "domain_label": 0,
+      "name": "1500rpm_0.5A",
+      "original_domain": 1
+    },
+    {
+      "domain_label": 1,
+      "name": "1800rpm_0.5A",
+      "original_domain": 2
+    },
+    {
+      "domain_label": 2,
+      "name": "2000rpm_0.5A",
+      "original_domain": 3
+    },
+    {
+      "domain_label": 3,
+      "name": "1000rpm_load_0to0.2A",
+      "original_domain": 5
+    },
+    {
+      "domain_label": 4,
+      "name": "1000rpm_load_0to0.35A",
+      "original_domain": 6
+    },
+    {
+      "domain_label": 5,
+      "name": "1000rpm_load_0to0.5A",
+      "original_domain": 7
+    },
+    {
+      "domain_label": 6,
+      "name": "1500rpm_load_0to0.2A",
+      "original_domain": 8
+    },
+    {
+      "domain_label": 7,
+      "name": "1500rpm_load_0to0.35A",
+      "original_domain": 9
+    },
+    {
+      "domain_label": 8,
+      "name": "1500rpm_load_0to0.5A",
+      "original_domain": 10
+    },
+    {
+      "domain_label": 9,
+      "name": "1800rpm_load_0to0.2A",
+      "original_domain": 11
+    },
+    {
+      "domain_label": 10,
+      "name": "1800rpm_load_0to0.35A",
+      "original_domain": 12
+    },
+    {
+      "domain_label": 11,
+      "name": "1800rpm_load_0to0.5A",
+      "original_domain": 13
+    },
+    {
+      "domain_label": 12,
+      "name": "2000rpm_load_0to0.2A",
+      "original_domain": 14
+    },
+    {
+      "domain_label": 13,
+      "name": "2000rpm_load_0to0.35A",
+      "original_domain": 15
+    },
+    {
+      "domain_label": 14,
+      "name": "2000rpm_load_0to0.5A",
+      "original_domain": 16
+    },
+    {
+      "domain_label": 15,
+      "name": "2500rpm_load_0to0.2A",
+      "original_domain": 17
+    },
+    {
+      "domain_label": 16,
+      "name": "2500rpm_load_0to0.35A",
+      "original_domain": 18
+    },
+    {
+      "domain_label": 17,
+      "name": "2500rpm_load_0to0.5A",
+      "original_domain": 19
+    },
+    {
+      "domain_label": 18,
+      "name": "fluctuating_speed_and_load",
+      "original_domain": 20
+    }
+  ],
+  "domain_labels": {
+    "0": "1500rpm_0.5A",
+    "1": "1800rpm_0.5A",
+    "2": "2000rpm_0.5A",
+    "3": "1000rpm_load_0to0.2A",
+    "4": "1000rpm_load_0to0.35A",
+    "5": "1000rpm_load_0to0.5A",
+    "6": "1500rpm_load_0to0.2A",
+    "7": "1500rpm_load_0to0.35A",
+    "8": "1500rpm_load_0to0.5A",
+    "9": "1800rpm_load_0to0.2A",
+    "10": "1800rpm_load_0to0.35A",
+    "11": "1800rpm_load_0to0.5A",
+    "12": "2000rpm_load_0to0.2A",
+    "13": "2000rpm_load_0to0.35A",
+    "14": "2000rpm_load_0to0.5A",
+    "15": "2500rpm_load_0to0.2A",
+    "16": "2500rpm_load_0to0.35A",
+    "17": "2500rpm_load_0to0.5A",
+    "18": "fluctuating_speed_and_load"
+  },
+  "domain_sequence_defined_at_runtime": true,
+  "available_domain_labels": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18
+  ],
+  "samples_per_class_per_domain": 512,
+  "num_classes": 7,
+  "num_domains": 19,
+  "total_samples": 68096,
+  "storage_order": "domain -> class -> acquisition time",
+  "selection": "uniform",
+  "target_stream_order": "interleaved",
+  "recordings": [
+    "SUDST/齿轮数据集/NC/normal 1500 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1500 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1500 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1500 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1500 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1500 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1500 0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1800 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1800 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1800 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1800 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1800 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1800 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1800 0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 2000 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2000 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2000 0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2000 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2000 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2000 0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2000 0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1800 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1800 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1800 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1800 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1800 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1800 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1800 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1800 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1800 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1800 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1800 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1800 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1800 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1800 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1800 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1800 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1800 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1800 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1800 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1800 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1800 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1800 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1800 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1800 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1800 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1800 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1800 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1800 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 1800 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 1800 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1800 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 1800 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1800 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 1800 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1800 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 1800 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1800 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 1800 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1800 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 1800 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1800 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 1800 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 2000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 2000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2000 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2000 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 2000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 2000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2000 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2000 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 2000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 2000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2000 0-0.5A 0.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2000 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2000 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 2500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 2500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2500 0-0.2A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2500 0-0.2A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 2500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 2500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2500 0-0.35A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2500 0-0.35A 2.mat",
+    "SUDST/齿轮数据集/NC/normal 2500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/NC/normal 2500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture 2500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting 2500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear 2500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture 2500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting 2500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2500 0-0.5A 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear 2500 0-0.5A 2.mat",
+    "SUDST/齿轮数据集/NC/normal flu flu 1.mat",
+    "SUDST/齿轮数据集/NC/normal flu flu 2.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture flu flu 1.mat",
+    "SUDST/齿轮数据集/太阳断裂/sunfracture flu flu 2.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting flu flu 1.mat",
+    "SUDST/齿轮数据集/太阳点蚀/sunpitting flu flu 2.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear flu flu 1.mat",
+    "SUDST/齿轮数据集/太阳磨损/sunwear flu flu 2.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture flu flu 1.mat",
+    "SUDST/齿轮数据集/行星断裂/planetrayfracture flu flu 2.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting flu flu 1.mat",
+    "SUDST/齿轮数据集/行星点蚀/planetraypitting flu flu 2.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear flu flu 1.mat",
+    "SUDST/齿轮数据集/行星磨损/planetraywear flu flu 2.mat"
+  ],
+  "combination_counts": [
+    {
+      "domain": "1500rpm_0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 525,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.2A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.2A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.2A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.2A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.2A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.2A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.2A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.35A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.35A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.35A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.35A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.35A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.35A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.35A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1000rpm_load_0to0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.2A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.2A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.2A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.2A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.2A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.2A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.2A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.35A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.35A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.35A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.35A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.35A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.35A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.35A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1500rpm_load_0to0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.2A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.2A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.2A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.2A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.2A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.2A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.2A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.35A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.35A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.35A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.35A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.35A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.35A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.35A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "1800rpm_load_0to0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.2A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.2A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.2A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.2A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.2A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.2A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.2A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.35A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.35A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.35A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.35A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.35A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.35A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.35A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2000rpm_load_0to0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.2A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.2A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.2A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.2A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.2A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.2A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.2A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.35A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.35A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.35A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.35A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.35A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.35A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.35A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.5A",
+      "class": "NC",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.5A",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.5A",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.5A",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.5A",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.5A",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "2500rpm_load_0to0.5A",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 1050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "fluctuating_speed_and_load",
+      "class": "NC",
+      "available_non_overlapping_windows": 2050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "fluctuating_speed_and_load",
+      "class": "太阳断裂",
+      "available_non_overlapping_windows": 2050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "fluctuating_speed_and_load",
+      "class": "太阳点蚀",
+      "available_non_overlapping_windows": 2050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "fluctuating_speed_and_load",
+      "class": "太阳磨损",
+      "available_non_overlapping_windows": 2050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "fluctuating_speed_and_load",
+      "class": "行星断裂",
+      "available_non_overlapping_windows": 2050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "fluctuating_speed_and_load",
+      "class": "行星点蚀",
+      "available_non_overlapping_windows": 2050,
+      "selected_windows": 512
+    },
+    {
+      "domain": "fluctuating_speed_and_load",
+      "class": "行星磨损",
+      "available_non_overlapping_windows": 2050,
+      "selected_windows": 512
+    }
+  ],
+  "fmctta_spec": {
+    "name": "SDUST_Gear_1024point_custom",
+    "filename": "SDUST_Gear_1024point_custom.mat",
+    "num_classes": 7,
+    "num_domains": 19,
+    "samples_per_class": 512,
+    "default_sequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18
+    ],
+    "description": "Custom native-rate 1024-point SDUST-Gear CTTA dataset",
+    "num_channels": 1,
+    "default_stream_order": "interleaved",
+    "domain_names": [
+      "1500rpm_0.5A",
+      "1800rpm_0.5A",
+      "2000rpm_0.5A",
+      "1000rpm_load_0to0.2A",
+      "1000rpm_load_0to0.35A",
+      "1000rpm_load_0to0.5A",
+      "1500rpm_load_0to0.2A",
+      "1500rpm_load_0to0.35A",
+      "1500rpm_load_0to0.5A",
+      "1800rpm_load_0to0.2A",
+      "1800rpm_load_0to0.35A",
+      "1800rpm_load_0to0.5A",
+      "2000rpm_load_0to0.2A",
+      "2000rpm_load_0to0.35A",
+      "2000rpm_load_0to0.5A",
+      "2500rpm_load_0to0.2A",
+      "2500rpm_load_0to0.35A",
+      "2500rpm_load_0to0.5A",
+      "fluctuating_speed_and_load"
+    ]
+  }
+}

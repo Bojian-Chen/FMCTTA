@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Gear/unifault/note.yaml
+base:
+  - base.yaml
+  - ../../methods/note.yaml
+
+runtime:
+  run_name: sdust-gear-unifault-small-note
+

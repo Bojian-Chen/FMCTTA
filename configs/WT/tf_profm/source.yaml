@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/tf_profm/source.yaml
+base:
+  - base.yaml
+  - ../../methods/source.yaml
+
+runtime:
+  run_name: wt-tf-profm-source
+

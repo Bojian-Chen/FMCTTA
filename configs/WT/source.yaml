@@ -1,3 +1,4 @@
+# Run: python main.py --config configs/WT/source.yaml
 # Train and save the source model required by the WT adaptation configurations.
 base: base.yaml
 

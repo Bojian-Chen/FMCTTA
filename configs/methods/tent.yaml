@@ -1,0 +1,7 @@
+# Shared TENT protocol.
+protocol:
+  method: tent
+
+adaptation:
+  adaptation_parameter_scope: layernorm
+

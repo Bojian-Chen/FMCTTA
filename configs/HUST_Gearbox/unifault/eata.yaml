@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifault/eata.yaml
+base:
+  - base.yaml
+  - ../../methods/eata.yaml
+
+runtime:
+  run_name: hust-gearbox-unifault-small-eata
+

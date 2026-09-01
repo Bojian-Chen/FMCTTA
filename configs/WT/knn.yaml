@@ -1,3 +1,4 @@
+# Run: python main.py --config configs/WT/knn.yaml
 # Source-reference kNN baseline. Run configs/WT/source.yaml first.
 base: base.yaml
 

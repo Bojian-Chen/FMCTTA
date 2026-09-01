@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/tf_profm/vida.yaml
+base:
+  - base.yaml
+  - ../../methods/vida.yaml
+
+runtime:
+  run_name: hust-gearbox-tf-profm-vida
+

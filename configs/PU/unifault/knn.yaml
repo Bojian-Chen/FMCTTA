@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/unifault/knn.yaml
+base:
+  - base.yaml
+  - ../../methods/knn.yaml
+
+runtime:
+  run_name: pu-unifault-small-knn
+

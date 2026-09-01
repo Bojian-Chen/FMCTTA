@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_motor/tf_profm/ttt.yaml
+base:
+  - base.yaml
+  - ../../methods/ttt.yaml
+
+runtime:
+  run_name: mcc5-motor-tf-profm-ttt
+

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Gear/unifault/vida.yaml
+base:
+  - base.yaml
+  - ../../methods/vida.yaml
+
+runtime:
+  run_name: sdust-gear-unifault-small-vida
+

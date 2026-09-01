@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Bearing/unifault/knn.yaml
+base:
+  - base.yaml
+  - ../../methods/knn.yaml
+
+runtime:
+  run_name: sdust-bearing-unifault-small-knn
+

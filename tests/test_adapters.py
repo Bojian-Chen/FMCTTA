@@ -65,6 +65,7 @@ def test_parameter_scopes_select_only_requested_modules() -> None:
     [
         ("knn", "none"),
         ("tent", "layernorm"),
+        ("note", "layernorm"),
         ("eata", "layernorm"),
         ("sar", "layernorm"),
         ("cotta", "all"),
@@ -77,7 +78,7 @@ def test_method_specific_default_scope(method: str, expected: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "method", ["source", "tent", "eata", "sar", "cotta", "vida"]
+    "method", ["source", "tent", "note", "eata", "sar", "cotta", "vida"]
 )
 def test_adapters_are_label_free_and_stateful(method: str) -> None:
     torch.manual_seed(3)
@@ -86,6 +87,9 @@ def test_adapters_are_label_free_and_stateful(method: str) -> None:
     kwargs = {}
     if method == "eata":
         kwargs["eata_entropy_margin"] = 10.0
+    if method == "note":
+        kwargs["note_memory_size"] = 6
+        kwargs["note_update_interval"] = 6
     if method == "sar":
         kwargs["sar_entropy_margin"] = 10.0
         kwargs["sar_reset_threshold"] = 0.0

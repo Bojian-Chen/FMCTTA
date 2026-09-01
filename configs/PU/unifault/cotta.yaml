@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/unifault/cotta.yaml
+base:
+  - base.yaml
+  - ../../methods/cotta.yaml
+
+runtime:
+  run_name: pu-unifault-small-cotta
+

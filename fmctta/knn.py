@@ -1,4 +1,4 @@
-"""Source-reference k-nearest-neighbor baseline for UniFreq features."""
+"""Source-reference k-nearest-neighbor baseline for foundation-model features."""
 
 import copy
 from typing import Dict, Tuple
@@ -32,7 +32,7 @@ def build_reference_bank(
 
 
 class KNNAdapter(OnlineAdapter):
-    """Non-adaptive kNN classifier over source-train UniFreq features."""
+    """Non-adaptive kNN classifier over source-train backbone features."""
 
     def __init__(
         self,

@@ -1,0 +1,431 @@
+{
+  "format_version": 1,
+  "dataset": "WT",
+  "name": "WT_1024point_custom",
+  "raw_root": "/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "mat_file": "/home/xyc3090/data1/PHMT/FMCTTA/data/ctta_custom/WT_1024point_custom.mat",
+  "sampling_frequency_hz": 48000,
+  "window_size_points": 1024,
+  "window_seconds": 0.021333333333333333,
+  "stride_points": 1024,
+  "stride_seconds": 0.021333333333333333,
+  "overlap": false,
+  "resampling": "none",
+  "normalization": "none",
+  "channels": [
+    "vibration_x",
+    "vibration_y"
+  ],
+  "num_channels": 2,
+  "classes": [
+    {
+      "label": 0,
+      "name": "healthy",
+      "original_label": 0
+    },
+    {
+      "label": 1,
+      "name": "broken",
+      "original_label": 1
+    },
+    {
+      "label": 2,
+      "name": "missing_tooth",
+      "original_label": 2
+    },
+    {
+      "label": 3,
+      "name": "root_crack",
+      "original_label": 3
+    },
+    {
+      "label": 4,
+      "name": "wear",
+      "original_label": 4
+    }
+  ],
+  "domains": [
+    {
+      "domain_label": 0,
+      "name": "20",
+      "original_domain": 0
+    },
+    {
+      "domain_label": 1,
+      "name": "25",
+      "original_domain": 1
+    },
+    {
+      "domain_label": 2,
+      "name": "30",
+      "original_domain": 2
+    },
+    {
+      "domain_label": 3,
+      "name": "35",
+      "original_domain": 3
+    },
+    {
+      "domain_label": 4,
+      "name": "40",
+      "original_domain": 4
+    },
+    {
+      "domain_label": 5,
+      "name": "45",
+      "original_domain": 5
+    },
+    {
+      "domain_label": 6,
+      "name": "50",
+      "original_domain": 6
+    },
+    {
+      "domain_label": 7,
+      "name": "55",
+      "original_domain": 7
+    }
+  ],
+  "domain_labels": {
+    "0": "20",
+    "1": "25",
+    "2": "30",
+    "3": "35",
+    "4": "40",
+    "5": "45",
+    "6": "50",
+    "7": "55"
+  },
+  "domain_sequence_defined_at_runtime": true,
+  "available_domain_labels": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "samples_per_class_per_domain": 900,
+  "num_classes": 5,
+  "num_domains": 8,
+  "total_samples": 36000,
+  "storage_order": "domain -> class -> acquisition time",
+  "selection": "uniform",
+  "target_stream_order": "interleaved",
+  "recordings": [
+    "WT/healthy/1/N1_20.MAT",
+    "WT/broken/1/B1_20.MAT",
+    "WT/missing_tooth/1/M1_20.MAT",
+    "WT/root_crack/1/R1_20.MAT",
+    "WT/wear/1/W1_20.MAT",
+    "WT/healthy/1/N1_25.MAT",
+    "WT/broken/1/B1_25.MAT",
+    "WT/missing_tooth/1/M1_25.MAT",
+    "WT/root_crack/1/R1_25.MAT",
+    "WT/wear/1/W1_25.MAT",
+    "WT/healthy/1/N1_30.MAT",
+    "WT/broken/1/B1_30.MAT",
+    "WT/missing_tooth/1/M1_30.MAT",
+    "WT/root_crack/1/R1_30.MAT",
+    "WT/wear/1/W1_30.MAT",
+    "WT/healthy/1/N1_35.MAT",
+    "WT/broken/1/B1_35.MAT",
+    "WT/missing_tooth/1/M1_35.MAT",
+    "WT/root_crack/1/R1_35.MAT",
+    "WT/wear/1/W1_35.MAT",
+    "WT/healthy/1/N1_40.MAT",
+    "WT/broken/1/B1_40.MAT",
+    "WT/missing_tooth/1/M1_40.MAT",
+    "WT/root_crack/1/R1_40.MAT",
+    "WT/wear/1/W1_40.MAT",
+    "WT/healthy/1/N1_45.MAT",
+    "WT/broken/1/B1_45.MAT",
+    "WT/missing_tooth/1/M1_45.MAT",
+    "WT/root_crack/1/R1_45.MAT",
+    "WT/wear/1/W1_45.MAT",
+    "WT/healthy/1/N1_50.MAT",
+    "WT/broken/1/B1_50.MAT",
+    "WT/missing_tooth/1/M1_50.MAT",
+    "WT/root_crack/1/R1_50.MAT",
+    "WT/wear/1/W1_50.MAT",
+    "WT/healthy/1/N1_55.MAT",
+    "WT/broken/1/B1_55.MAT",
+    "WT/missing_tooth/1/M1_55.MAT",
+    "WT/root_crack/1/R1_55.MAT",
+    "WT/wear/1/W1_55.MAT"
+  ],
+  "combination_counts": [
+    {
+      "domain": "20",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "20",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "20",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "20",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "20",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "25",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "25",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "25",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "25",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "25",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "30",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "30",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "30",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "30",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "30",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "35",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "35",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "35",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "35",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "35",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "40",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "40",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "40",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "40",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "40",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "45",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "45",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "45",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "45",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "45",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "50",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "50",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "50",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "50",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "50",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "55",
+      "class": "healthy",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "55",
+      "class": "broken",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "55",
+      "class": "missing_tooth",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "55",
+      "class": "root_crack",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    },
+    {
+      "domain": "55",
+      "class": "wear",
+      "available_non_overlapping_windows": 937,
+      "selected_windows": 900
+    }
+  ],
+  "fmctta_spec": {
+    "name": "WT_1024point_custom",
+    "filename": "WT_1024point_custom.mat",
+    "num_classes": 5,
+    "num_domains": 8,
+    "samples_per_class": 900,
+    "default_sequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "description": "Custom native-rate 1024-point WT CTTA dataset",
+    "num_channels": 2,
+    "default_stream_order": "interleaved",
+    "domain_names": [
+      "20",
+      "25",
+      "30",
+      "35",
+      "40",
+      "45",
+      "50",
+      "55"
+    ]
+  }
+}

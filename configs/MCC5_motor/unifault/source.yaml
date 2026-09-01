@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_motor/unifault/source.yaml
+base:
+  - base.yaml
+  - ../../methods/source.yaml
+
+runtime:
+  run_name: mcc5-motor-unifault-small-source
+

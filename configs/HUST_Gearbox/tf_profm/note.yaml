@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/tf_profm/note.yaml
+base:
+  - base.yaml
+  - ../../methods/note.yaml
+
+runtime:
+  run_name: hust-gearbox-tf-profm-note
+

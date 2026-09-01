@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Gear/unifault/tca.yaml
+base:
+  - base.yaml
+  - ../../methods/tca.yaml
+
+runtime:
+  run_name: sdust-gear-unifault-small-tca
+

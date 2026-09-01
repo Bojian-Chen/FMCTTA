@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/unifault/sar.yaml
+base:
+  - base.yaml
+  - ../../methods/sar.yaml
+
+runtime:
+  run_name: wt-unifault-small-sar
+

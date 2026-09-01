@@ -1,0 +1,11 @@
+# Shared TTT protocol. It jointly trains the source classifier and auxiliary head.
+protocol:
+  method: ttt
+
+model:
+  source_checkpoint: ""
+
+adaptation:
+  adaptation_parameter_scope: backbone
+  ttt_source_auxiliary_weight: 1.0
+

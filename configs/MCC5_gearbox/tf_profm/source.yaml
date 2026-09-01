@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_gearbox/tf_profm/source.yaml
+base:
+  - base.yaml
+  - ../../methods/source.yaml
+
+runtime:
+  run_name: mcc5-gearbox-tf-profm-source
+

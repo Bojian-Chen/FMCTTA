@@ -1,7 +1,7 @@
 # FMCTTA
 
-> Continual test-time adaptation for fault diagnosis with pretrained
-> [UniFreq](https://github.com/Bojian-Chen/UniFreq) encoders.
+> Continual test-time adaptation for fault diagnosis with pretrained UniFreq,
+> UniFault, and TF-ProFM encoders.
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.1%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
@@ -10,16 +10,16 @@
 
 English | [简体中文](README_zh.md)
 
-FMCTTA turns a pretrained UniFreq encoder into a stateful online fault
+FMCTTA turns a pretrained fault foundation model into a stateful online fault
 diagnosis system. It first learns a classifier from one labeled source domain,
 then adapts to an ordered stream of unlabeled target domains without resetting
 the model between domains.
 
 ## Highlights
 
-- Loads `UniFreq-tiny`, `UniFreq-small`, or `UniFreq-base` directly from
-  Hugging Face; no pretraining pipeline is included.
-- Implements Source-only, source-reference kNN, TENT, EATA, SAR, CoTTA, ViDA, and Continual-MAE for Transformer-based
+- Loads UniFreq from Hugging Face and UniFault/TF-ProFM from PHMFD pretraining
+  checkpoints; no new pretraining run is required.
+- Implements Source-only, source-reference kNN, TENT, NOTE, EATA, SAR, CoTTA, ViDA, Continual-MAE, RoTTA, TCA, and classic TTT for Transformer-based
   vibration encoders.
 - Keeps target labels outside every adapter. Labels are read only by the
   evaluation meters after prediction.
@@ -32,6 +32,20 @@ the model between domains.
 
 ## Models
 
+| `foundation_model` | Weight source | Default model-side preprocessing |
+|---|---|---|
+| `unifreq` | Hugging Face/local `--model_id` | Built-in UniFreq processor |
+| `unifault` | PHMFD `--pretrained_checkpoint` | Resample to 1024 and sample min-max |
+| `tf_profm` | PHMFD `--pretrained_checkpoint` | Resize/truncate to 2048 and sample z-score |
+
+For the local PHMFD checkout, `--pretrained_checkpoint auto` selects the
+seed-42 checkpoint under `/data1/PHM-Vibench/PHMFD/log`. Model profiles live in
+`configs/foundation_models/`. Checkpoint loading requires complete backbone
+coverage and intentionally discards pretraining-only heads; FMCTTA trains a
+new source classifier for the selected dataset.
+
+### UniFreq variants
+
 | CLI value | Hugging Face model | Recommended use |
 |---|---|---|
 | `bojian1/UniFreq-tiny` | [UniFreq-tiny](https://huggingface.co/bojian1/UniFreq-tiny) | Fast experiments and smoke tests |
@@ -41,7 +55,8 @@ the model between domains.
 The exact UniFreq inference architecture is included under
 `fmctta/unifreq/`, synchronized from UniFreq commit
 `eeb2930a35f5668b80000c7f19875f39714b1c44`. Model weights remain on Hugging
-Face and are downloaded on demand.
+Face and are downloaded on demand. Migrated UniFault/TF-ProFM backbones are in
+`fmctta/phmfd_models.py`; their large weight files remain in PHMFD `log`.
 
 ## Supported adaptation methods
 
@@ -50,46 +65,66 @@ Face and are downloaded on demand.
 | `source` | No target update | None |
 | `knn` | Cosine kNN over a fixed labeled source-train reference bank | None |
 | `tent` | Entropy minimization | LayerNorm affine parameters |
+| `note` | Entropy minimization over pseudo-balanced replay (PBRS) | LayerNorm affine parameters |
 | `eata` | Reliable/diverse entropy + Fisher regularization | LayerNorm affine parameters |
 | `sar` | Reliable entropy with sharpness-aware updates | LayerNorm affine parameters |
 | `cotta` | EMA teacher consistency + stochastic restoration | All parameters |
 | `vida` | EMA consistency + high/low-rank ViDA with HKA | ViDA branches + all base parameters |
 | `continual_mae` | Frequency-bin distribution-aware masking + reconstruction + teacher consistency | All base parameters + MAE auxiliary parameters |
+| `rotta` | CSTU memory and timeliness-weighted EMA consistency | LayerNorm affine parameters |
+| `tca` | Persistent class topology, consistency, and view alignment | All parameters |
+| `ttt` | Four-way circular-shift prediction before task inference | Foundation backbone + auxiliary head |
+
+All methods support all three backbones except `continual_mae`, whose current
+frequency-bin reconstruction interface is specific to UniFreq global-FFT
+tokens.
+
+The [NOTE](https://github.com/TaesikGong/NOTE) integration keeps its
+pseudo-label balanced reservoir and periodic memory-based entropy updates. The
+original image implementation's optional instance-aware BatchNorm is not
+ported because UniFreq uses Transformer/LayerNorm blocks; the standard
+adaptation scope controls the LayerNorm affine parameters instead.
 
 The [ViDA](https://github.com/Yangsenqiao/vida) integration injects parallel
-low- and high-rank linear branches into the UniFreq backbone. Homeostatic
+low- and high-rank linear branches into the foundation backbone. Homeostatic
 Knowledge Allotment (HKA) uses augmentation-based teacher uncertainty to favor
 the high-rank branch under a large shift and the low-rank branch otherwise.
 The branches are zero-initialized after source checkpoint loading, so existing
 FMCTTA source checkpoints remain compatible.
 
 UniFreq uses Transformer/LayerNorm blocks, so BatchNorm-only AdaBN is not
-applicable. Classic TTT is intentionally omitted because it requires an
-auxiliary self-supervised head trained together with the source model; the
-published UniFreq checkpoints do not contain that auxiliary task.
+applicable. The RoTTA port keeps CSTU and its EMA objective while explicitly
+using LayerNorm affine adaptation instead of pretending Robust BN exists.
+Classic TTT jointly trains its shift-prediction head on the labeled source
+stage and stores that head in a separate safe checkpoint file.
 
 ## Project layout
 
 ```text
-PHMT/
-├── OCTTA/
-│   └── data/                 # processed MAT datasets
-└── FMCTTA/
-    ├── fmctta/
-    │   ├── adapters.py       # online CTTA algorithms
-    │   ├── knn.py            # source-reference kNN baseline
-    │   ├── data.py           # source split and ordered target streams
-    │   ├── model.py          # UniFreq + downstream classifier
-    │   ├── runner.py         # complete CTTA protocol
-    │   ├── source.py         # source training and safe checkpoints
-    │   ├── vida.py           # high/low-rank ViDA injection
-    │   └── unifreq/          # inference-only UniFreq implementation
-    ├── tests/
-    └── main.py
+FMCTTA/
+├── data/ctta_custom/         # bundled PU/WT MAT files and manifests
+├── fmctta/
+│   ├── adapters.py           # online CTTA algorithms
+│   ├── knn.py                # source-reference kNN baseline
+│   ├── note.py               # NOTE pseudo-balanced replay adapter
+│   ├── rotta.py              # LayerNorm RoTTA port and CSTU memory
+│   ├── tca.py                # topological consistency adaptation
+│   ├── ttt.py                # source-trained test-time training task
+│   ├── data.py               # source split and ordered target streams
+│   ├── model.py              # unified model factory and classifier
+│   ├── phmfd_models.py       # UniFault and TF-ProFM backbones
+│   ├── runner.py             # complete CTTA protocol
+│   ├── source.py             # source training and safe checkpoints
+│   ├── vida.py               # high/low-rank ViDA injection
+│   └── unifreq/              # inference-only UniFreq implementation
+├── tests/
+└── main.py
 ```
 
-The default data directory is `../OCTTA/data`. The preprocessing and dataset
-description are available in
+The default data directory is `data/ctta_custom`, which contains the bundled
+PU and WT datasets. HUST and MCC5 experiments are loaded through their
+generated manifests or an explicit `--data_root`. The raw-data preprocessing
+instructions are available in
 [PHMFD-data-preprocessing](https://github.com/Bojian-Chen/PHMFD-data-preprocessing).
 
 ## Installation
@@ -103,7 +138,7 @@ pip install -r requirements.txt
 
 No Hugging Face token is required for public UniFreq models. For offline runs,
 download a model in advance and pass either its local directory to
-`--model-id` or use `--local-files-only` with an existing cache.
+`--model_id` or use `--local_files_only` with an existing cache.
 
 ## Quick start
 
@@ -111,29 +146,29 @@ download a model in advance and pass either its local directory to
 
 ```bash
 python main.py \
-  --dataset PU_Real \
+  --dataset PU \
   --method source \
-  --model-id bojian1/UniFreq-tiny \
+  --model_id bojian1/UniFreq-tiny \
   --domains 3,2,0,1 \
-  --run-name pu-source
+  --run_name pu-source
 ```
 
 This downloads UniFreq, trains the downstream classifier on domain `3`, and
 evaluates domains `2 → 0 → 1` in order. The source checkpoint is saved at:
 
 ```text
-outputs/PU_Real/source/pu-source-seed2025/source_checkpoint/
+outputs/PU/source/pu-source-seed2025/source_checkpoint/
 ```
 
-Set `--source-backbone-lr-scale 0` to train only the classifier. The default
+Set `--source_backbone_lr_scale 0` to train only the classifier. The default
 `0.01` also fine-tunes UniFreq using one hundredth of the classifier learning
 rate.
 
 ### Branch selection
 
-Use `--feature-branch fused` (the default) for the original time/frequency
-fusion. For branch ablations, `--feature-branch time` runs only the time-domain
-encoder and `--feature-branch frequency` runs only the frequency-domain
+Use `--feature_branch fused` (the default) for the original time/frequency
+fusion. For branch ablations, `--feature_branch time` runs only the time-domain
+encoder and `--feature_branch frequency` runs only the frequency-domain
 encoder. A single branch produces `embed_dim` features instead of the
 concatenated feature vector, so train a new source classifier/checkpoint for
 each selection. Checkpoints record the selection and reject a mismatched run.
@@ -142,45 +177,56 @@ For example, train and use a frequency-only source model:
 
 ```bash
 python main.py \
-  --dataset PU_Real --domains 3,2,0,1 --method source \
-  --feature-branch frequency --run-name pu-frequency-source
+  --dataset PU --domains 3,2,0,1 --method source \
+  --feature_branch frequency --run_name pu-frequency-source
 ```
 
 ### Per-class sampling and repeated target domains
 
-`--source-samples-per-class` accepts one count for every source class, or a
-comma-separated count for each class. `--target-samples-per-class` works the
+`--source_samples_per_class` accepts one count for every source class, or a
+comma-separated count for each class. `--target_samples_per_class` works the
 same way for targets; one entry applies to every target-stream occurrence, and
 semicolon-separated entries assign counts by stream position. Repeated target
 domains are allowed. Their samples are allocated without replacement, so the
 sum requested for each repeated domain/class cannot exceed the data available.
+Set `--allow_repeated_target_samples` to independently draw each occurrence
+from the full domain pool instead; samples may then overlap between occurrences.
 When loading a source checkpoint, pass the same source sampling selection used
 to train it; that selection is recorded in the checkpoint metadata.
 
 ```bash
 python main.py \
-  --dataset PU_Real --method tent \
+  --dataset PU --method tent \
   --domains 0,1,2,3,1,3,2,3 \
-  --source-samples-per-class 60 \
-  --target-samples-per-class 20 \
-  --run-name repeated-targets
+  --source_samples_per_class 60 \
+  --target_samples_per_class 20 \
+  --run_name repeated-targets
 ```
 
 The target stream above has seven occurrences. Each occurrence receives 20
 samples from every class; domain 1 therefore uses 40 distinct samples per
 class, domain 2 uses 40, and domain 3 uses 60. For different allocations by
-occurrence, use for example `--target-samples-per-class '20;10;15;20;10;15;20'`.
+occurrence, use for example `--target_samples_per_class '20;10;15;20;10;15;20'`.
 
-Complete YAML experiments for the custom PU and WT datasets in `data/ctta_custom`
-are organized in [`configs/PU`](configs/PU) and [`configs/WT`](configs/WT). Each
-directory provides Source-only, kNN, TENT, EATA, SAR, CoTTA, ViDA, and Continual-MAE configurations
-and a dataset-specific base file. See [`configs/README_zh.md`](configs/README_zh.md)
+Complete YAML experiments are organized by dataset. Each dataset root contains
+the UniFreq matrix, while its `unifault/` and `tf_profm/` subdirectories contain
+the compatible UniFault-small and TF-ProFM matrices. Shared method overlays are
+kept in `configs/methods/`; ordered YAML `base` lists compose a dataset/model base
+with an algorithm overlay. The UniFreq matrix includes Continual-MAE; the two
+PHMFD matrices include Source-only, kNN, TENT, NOTE, EATA, SAR, CoTTA, ViDA,
+RoTTA, TCA, and TTT. See [`configs/README_zh.md`](configs/README_zh.md)
 for the layout, run order, and parameter reference. For example, train the PU
 source model before running TENT:
 
 ```bash
 python main.py --config configs/PU/source.yaml
 python main.py --config configs/PU/tent.yaml
+
+python main.py --config configs/PU/unifault/source.yaml
+python main.py --config configs/PU/unifault/tent.yaml
+
+python main.py --config configs/PU/tf_profm/source.yaml
+python main.py --config configs/PU/tf_profm/tent.yaml
 ```
 
 Command-line options override YAML values.
@@ -191,20 +237,20 @@ Command-line options override YAML values.
 python main.py --config configs/PU/tent.yaml
 ```
 
-Replace `tent` with `knn`, `eata`, `sar`, `cotta`, `vida`, or `continual_mae`.
+Replace `tent` with `knn`, `note`, `eata`, `sar`, `cotta`, `vida`, or `continual_mae`.
 The kNN baseline extracts source-train UniFreq features once and never consumes
 target labels or updates model parameters. For example:
 
 ```bash
 python main.py \
-  --dataset PU_Real --domains 3,2,0,1 --method vida \
-  --source-checkpoint outputs/PU_Real/source/pu-source-seed2025/source_checkpoint \
-  --vida-low-rank 1 --vida-high-rank 128 \
-  --run-name pu-vida
+  --dataset PU --domains 3,2,0,1 --method vida \
+  --source_checkpoint outputs/PU/source/pu-source-seed2025/source_checkpoint \
+  --vida_low_rank 1 --vida_high_rank 128 \
+  --run_name pu-vida
 ```
 
 Use
-`--adaptation-parameter-scope classifier`, `backbone`, `layernorm`, or `all`
+`--adaptation_parameter_scope classifier`, `backbone`, `layernorm`, or `all`
 for controlled ablations. ViDA branches remain trainable under every ViDA
 scope; the scope controls the additional base-model parameters.
 
@@ -212,10 +258,10 @@ For a quick end-to-end check:
 
 ```bash
 python main.py \
-  --dataset PU_Real --domains 3,2 --method tent \
-  --source-epochs 1 --source-backbone-lr-scale 0 \
-  --max-source-per-class 4 --max-target-per-domain 8 \
-  --stream-batch-size 4 --device cpu --run-name smoke
+  --dataset PU --domains 3,2 --method tent \
+  --source_epochs 1 --source_backbone_lr_scale 0 \
+  --max_source_per_class 4 --max_target_per_domain 8 \
+  --stream_batch_size 4 --device cpu --run_name smoke
 ```
 
 ## Evaluation protocol
@@ -262,8 +308,9 @@ checkpoint validation.
 
 ## Acknowledgements
 
-FMCTTA builds on [UniFreq](https://github.com/Bojian-Chen/UniFreq) and follows
-the online protocol organization of the neighboring OCTTA implementation.
+FMCTTA builds on UniFreq and the UniFault/TF-ProFM implementations and weights
+in PHMFD, and follows the online protocol organization of the neighboring
+OCTTA implementation.
 
 ## License
 

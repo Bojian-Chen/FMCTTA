@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/tf_profm/cotta.yaml
+base:
+  - base.yaml
+  - ../../methods/cotta.yaml
+
+runtime:
+  run_name: wt-tf-profm-cotta
+

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Gear/unifault/source.yaml
+base:
+  - base.yaml
+  - ../../methods/source.yaml
+
+runtime:
+  run_name: sdust-gear-unifault-small-source
+

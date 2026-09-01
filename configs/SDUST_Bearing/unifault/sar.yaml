@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Bearing/unifault/sar.yaml
+base:
+  - base.yaml
+  - ../../methods/sar.yaml
+
+runtime:
+  run_name: sdust-bearing-unifault-small-sar
+

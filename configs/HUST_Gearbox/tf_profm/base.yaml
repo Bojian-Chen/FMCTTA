@@ -1,0 +1,15 @@
+# HUST_Gearbox + TF-ProFM; inherits the dataset stream and training protocol.
+base: ../base.yaml
+
+data:
+  # PHMFD preprocessing is applied by the model wrapper; avoid double normalization.
+  normalization: none
+
+model:
+  foundation_model: tf_profm
+  foundation_model_size: auto
+  pretrained_checkpoint: auto
+  model_input_length: 0
+  model_input_normalization: auto
+  feature_branch: fused
+  source_checkpoint: outputs/HUST_Gearbox_0p1s_custom/source/hust-gearbox-tf-profm-source-seed2025/source_checkpoint

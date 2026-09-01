@@ -1,0 +1,19 @@
+# Run: python main.py --config configs/HUST_Gearbox/note.yaml
+# Run after configs/HUST_Gearbox/source.yaml.
+base: base.yaml
+
+protocol:
+  method: note # ["source", "knn", "tent", "note", "eata", "sar", "cotta", "vida", "continual_mae"]
+
+adaptation:
+  # NOTE's official setup updates normalization parameters with Adam and uses
+  # a 64-sample pseudo-balanced replay memory every 64 target samples.
+  adaptation_learning_rate: 0.0001
+  adaptation_parameter_scope: layernorm # ["default", "layernorm", "classifier", "backbone", "all"]
+  adaptation_steps: 1
+  note_memory_size: 64
+  note_update_interval: 64
+  note_temperature: 1.0
+
+runtime:
+  run_name: hust-gearbox-note

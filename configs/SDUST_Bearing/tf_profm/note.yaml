@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Bearing/tf_profm/note.yaml
+base:
+  - base.yaml
+  - ../../methods/note.yaml
+
+runtime:
+  run_name: sdust-bearing-tf-profm-note
+

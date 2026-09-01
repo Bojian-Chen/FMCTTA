@@ -1,0 +1,12 @@
+# Run: python main.py --config configs/MCC5_motor/source.yaml
+base: base.yaml
+
+protocol:
+  method: source
+
+model:
+  source_checkpoint: ""
+
+runtime:
+  run_name: mcc5-motor-source
+

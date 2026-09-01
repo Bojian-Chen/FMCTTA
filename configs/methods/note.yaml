@@ -1,0 +1,12 @@
+# Shared NOTE protocol.
+protocol:
+  method: note
+
+adaptation:
+  adaptation_learning_rate: 0.0001
+  adaptation_parameter_scope: layernorm
+  adaptation_steps: 1
+  note_memory_size: 64
+  note_update_interval: 64
+  note_temperature: 1.0
+

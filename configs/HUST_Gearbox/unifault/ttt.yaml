@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifault/ttt.yaml
+base:
+  - base.yaml
+  - ../../methods/ttt.yaml
+
+runtime:
+  run_name: hust-gearbox-unifault-small-ttt
+

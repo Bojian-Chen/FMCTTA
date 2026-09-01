@@ -1,0 +1,15 @@
+# MCC5_gearbox + UniFault-small; inherits the dataset stream and training protocol.
+base: ../base.yaml
+
+data:
+  # PHMFD preprocessing is applied by the model wrapper; avoid double normalization.
+  normalization: none
+
+model:
+  foundation_model: unifault
+  foundation_model_size: small
+  pretrained_checkpoint: auto
+  model_input_length: 0
+  model_input_normalization: auto
+  feature_branch: fused
+  source_checkpoint: outputs/MCC5_Gearbox_1024point_custom/source/mcc5-gearbox-unifault-small-source-seed2025/source_checkpoint

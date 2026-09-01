@@ -1,0 +1,9 @@
+# PHMFD TF-ProFM backbone with its seed-42 pretraining checkpoint.
+model:
+  foundation_model: tf_profm
+  foundation_model_size: auto
+  pretrained_checkpoint: auto
+  model_input_length: 0
+  model_input_normalization: auto
+  feature_branch: fused
+

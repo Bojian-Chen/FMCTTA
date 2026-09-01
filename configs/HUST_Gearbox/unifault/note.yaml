@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifault/note.yaml
+base:
+  - base.yaml
+  - ../../methods/note.yaml
+
+runtime:
+  run_name: hust-gearbox-unifault-small-note
+

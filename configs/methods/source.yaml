@@ -1,0 +1,8 @@
+# Shared source-only protocol. Compose after a dataset/model base.
+protocol:
+  method: source
+
+model:
+  # A source run trains a fresh downstream model instead of loading one.
+  source_checkpoint: ""
+

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/unifault/tent.yaml
+base:
+  - base.yaml
+  - ../../methods/tent.yaml
+
+runtime:
+  run_name: wt-unifault-small-tent
+

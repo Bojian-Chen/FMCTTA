@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/tf_profm/rotta.yaml
+base:
+  - base.yaml
+  - ../../methods/rotta.yaml
+
+runtime:
+  run_name: pu-tf-profm-rotta
+

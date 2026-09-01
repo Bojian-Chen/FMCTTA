@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_gearbox/unifault/tent.yaml
+base:
+  - base.yaml
+  - ../../methods/tent.yaml
+
+runtime:
+  run_name: mcc5-gearbox-unifault-small-tent
+

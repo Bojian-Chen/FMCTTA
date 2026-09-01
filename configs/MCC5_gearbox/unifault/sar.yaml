@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_gearbox/unifault/sar.yaml
+base:
+  - base.yaml
+  - ../../methods/sar.yaml
+
+runtime:
+  run_name: mcc5-gearbox-unifault-small-sar
+

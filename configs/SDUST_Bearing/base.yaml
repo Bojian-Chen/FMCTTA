@@ -1,0 +1,52 @@
+# SDUST-Bearing 1024-point profile (25,600 Hz, 0.04 s per sample),
+# transferred from OCTTA's prepared dataset and default B-Fixed protocol.
+
+protocol:
+  # Match OCTTA's default B-Fixed protocol: jointly train on all four
+  # 1000 rpm load conditions, then adapt through the fixed-speed target
+  # domains from 1500 rpm to 3000 rpm in the order listed here.
+  source_domains: [0, 1, 2, 3]
+  domains: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+  stream_order: shuffled # ["shuffled", "class_block", "interleaved"]
+  stream_batch_size: 64
+  seed: 2025
+
+data:
+  dataset_manifest: data/ctta_custom/SDUST_Bearing_1024point_custom.json
+  normalization: zscore
+  source_validation_ratio: 0.2
+  strict_data: false
+  allow_repeated_target_samples: false
+  max_source_per_class: null
+  max_target_per_domain: null
+  # The current manifest contains 1024 windows for every class/domain.
+  source_samples_per_class: 1024
+  target_samples_per_class: 1024
+
+model:
+  model_id: bojian1/UniFreq-tiny
+  model_revision: ""
+  cache_dir: ""
+  local_files_only: false
+  feature_branch: frequency
+  source_checkpoint: outputs/SDUST_Bearing_1024point_custom/source/sdust-bearing-source-seed2025/source_checkpoint
+  classifier: linear
+  classifier_dropout: 0.0
+  source_epochs: 30
+  source_batch_size: 64
+  eval_batch_size: 128
+  source_learning_rate: 0.01
+  source_backbone_lr_scale: 0.01
+  source_weight_decay: 0.0001
+  source_gradient_clip: 1.0
+
+adaptation:
+  adaptation_learning_rate: 0.0025
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+  adaptation_parameter_scope: default
+
+runtime:
+  device: auto
+  workers: 0
+  output_dir: outputs

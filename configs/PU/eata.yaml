@@ -1,3 +1,4 @@
+# Run: python main.py --config configs/PU/eata.yaml
 # Run after configs/PU/source.yaml.
 base: base.yaml
 

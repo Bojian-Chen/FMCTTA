@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_gearbox/tf_profm/tent.yaml
+base:
+  - base.yaml
+  - ../../methods/tent.yaml
+
+runtime:
+  run_name: mcc5-gearbox-tf-profm-tent
+

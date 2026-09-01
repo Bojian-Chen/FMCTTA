@@ -1,3 +1,4 @@
+# Run: python main.py --config configs/WT/tent.yaml
 # Run after configs/WT/source.yaml; the inherited checkpoint path assumes output_dir, seed, and source run_name remain unchanged.
 base: base.yaml
 

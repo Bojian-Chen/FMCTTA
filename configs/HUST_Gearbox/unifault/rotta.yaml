@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifault/rotta.yaml
+base:
+  - base.yaml
+  - ../../methods/rotta.yaml
+
+runtime:
+  run_name: hust-gearbox-unifault-small-rotta
+

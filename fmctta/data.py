@@ -50,25 +50,43 @@ class FaultDataModule:
         self,
         spec: DatasetSpec,
         data_root: Path,
-        source_domain: int,
-        target_domains: Sequence[int],
+        source_domain: Optional[int] = None,
+        target_domains: Sequence[int] = (),
+        representation: str = "time",
+        input_dimension: str = "1d",
         normalization: str = "zscore",
         source_validation_ratio: float = 0.2,
         stream_order: str = "shuffled",
         seed: int = 2025,
         strict_data: bool = False,
+        allow_repeated_target_samples: bool = False,
         max_source_per_class: Optional[int] = None,
         max_target_per_domain: Optional[int] = None,
         source_samples_per_class: Optional[Sequence[int]] = None,
         target_samples_per_class: Optional[Sequence[Sequence[int]]] = None,
+        source_domains: Optional[Sequence[int]] = None,
     ) -> None:
         self.spec = spec
-        self.source_domain = int(source_domain)
+        if source_domains is None:
+            if source_domain is None:
+                raise ValueError("At least one source domain must be specified")
+            self.source_domains = (int(source_domain),)
+        else:
+            self.source_domains = tuple(int(domain) for domain in source_domains)
+            if not self.source_domains:
+                raise ValueError("At least one source domain must be specified")
+            if source_domain is not None and int(source_domain) != self.source_domains[0]:
+                raise ValueError("source_domain must match the first source_domains entry")
+        # Retained for callers that use the legacy single-source attribute.
+        self.source_domain = self.source_domains[0]
         self.target_domains = tuple(int(domain) for domain in target_domains)
+        self.representation = representation
+        self.input_dimension = input_dimension
         self.normalization = normalization
         self.source_validation_ratio = source_validation_ratio
         self.stream_order = stream_order
         self.seed = seed
+        self.allow_repeated_target_samples = allow_repeated_target_samples
         self.max_source_per_class = max_source_per_class
         self.max_target_per_domain = max_target_per_domain
         self.source_samples_per_class = (
@@ -102,16 +120,41 @@ class FaultDataModule:
         self._target_datasets = self._build_target_datasets()
 
     def _validate_options(self) -> None:
-        if self.source_domain in self.target_domains:
+        if len(set(self.source_domains)) != len(self.source_domains):
+            raise ValueError("source_domains cannot contain duplicates")
+        overlapping = sorted(set(self.source_domains).intersection(self.target_domains))
+        if overlapping:
             raise ValueError(
-                "The source domain cannot also appear in the target stream"
+                "Source domains cannot also appear in the target stream: "
+                f"{overlapping}"
             )
-        all_domains = (self.source_domain,) + self.target_domains
+        all_domains = self.source_domains + self.target_domains
         invalid = [d for d in all_domains if not 0 <= d < self.spec.num_domains]
         if invalid:
             raise ValueError(f"Invalid domains for {self.spec.name}: {invalid}")
+        if self.spec.domain_groups:
+            source_groups = {
+                self.spec.domain_groups[domain]
+                for domain in self.source_domains
+                if self.spec.domain_groups[domain]
+            }
+            conflicting_targets = [
+                domain
+                for domain in self.target_domains
+                if self.spec.domain_groups[domain] in source_groups
+            ]
+            if conflicting_targets:
+                raise ValueError(
+                    "Source and target domains cannot come from the same raw "
+                    "recording group; conflicting target domains: "
+                    f"{conflicting_targets}"
+                )
         if not 0.0 < self.source_validation_ratio < 1.0:
             raise ValueError("source_validation_ratio must be between 0 and 1")
+        if self.representation not in {"time", "frequency"}:
+            raise ValueError("representation must be 'time' or 'frequency'")
+        if self.input_dimension not in {"1d", "2d"}:
+            raise ValueError("input_dimension must be '1d' or '2d'")
         if self.normalization not in {"zscore", "minmax", "none"}:
             raise ValueError("normalization must be zscore, minmax, or none")
         if self.stream_order not in {"shuffled", "class_block", "interleaved"}:
@@ -122,60 +165,55 @@ class FaultDataModule:
             if self.max_source_per_class < 1:
                 raise ValueError("max_source_per_class must be positive")
             if self.source_samples_per_class is not None:
-                raise ValueError(
-                    "max_source_per_class and source_samples_per_class are "
-                    "mutually exclusive"
-                )
+                raise ValueError("max_source_per_class and source_samples_per_class are mutually exclusive")
         if self.max_target_per_domain is not None:
             if self.max_target_per_domain < 1:
                 raise ValueError("max_target_per_domain must be positive")
             if self.target_samples_per_class is not None:
-                raise ValueError(
-                    "max_target_per_domain and target_samples_per_class are "
-                    "mutually exclusive"
-                )
-            if len(set(self.target_domains)) != len(self.target_domains):
-                raise ValueError(
-                    "Repeated target domains require target_samples_per_class so "
-                    "their samples can be allocated without reuse"
-                )
+                raise ValueError("max_target_per_domain and target_samples_per_class are mutually exclusive")
+            if (
+                not self.allow_repeated_target_samples
+                and len(set(self.target_domains)) != len(self.target_domains)
+            ):
+                raise ValueError("Repeated target domains require target_samples_per_class so their samples can be allocated without reuse; set allow_repeated_target_samples to allow reuse")
         if self.source_samples_per_class is not None:
             if len(self.source_samples_per_class) != self.spec.num_classes:
                 raise ValueError(
                     "source_samples_per_class must contain one count per class"
                 )
+            source_limit = min(
+                self.spec.samples_per_class_for_domain(domain)
+                for domain in self.source_domains
+            )
             if any(
-                count < 2 or count > self.spec.samples_per_class
+                count < 2 or count > source_limit
                 for count in self.source_samples_per_class
             ):
                 raise ValueError(
                     "Each source class count must be between 2 and "
-                    f"{self.spec.samples_per_class}"
+                    f"{source_limit} for the selected source domains"
                 )
         if self.target_samples_per_class is not None:
             if len(self.target_samples_per_class) != len(self.target_domains):
-                raise ValueError(
-                    "target_samples_per_class must contain one entry for each "
-                    "target-stream occurrence"
-                )
-            for counts in self.target_samples_per_class:
+                raise ValueError("target_samples_per_class must contain one entry for each target-stream occurrence")
+            for domain, counts in zip(
+                self.target_domains, self.target_samples_per_class
+            ):
                 if len(counts) != self.spec.num_classes:
                     raise ValueError(
                         "Each target sample entry must contain one count per class"
                     )
-                if any(
-                    count < 1 or count > self.spec.samples_per_class
-                    for count in counts
-                ):
+                target_limit = self.spec.samples_per_class_for_domain(domain)
+                if any(count < 1 or count > target_limit for count in counts):
                     raise ValueError(
                         "Each target class count must be between 1 and "
-                        f"{self.spec.samples_per_class}"
+                        f"{target_limit} for target domain {domain}"
                     )
 
     def _load_mat(self, path: Path, strict_data: bool) -> Tuple[np.ndarray, np.ndarray]:
         if not path.is_file():
             raise FileNotFoundError(f"Dataset not found: {path}")
-        content = sio.loadmat(path)
+        content = self._load_arrays(path)
         if "data" not in content or "label" not in content:
             raise ValueError(f"{path} must contain 'data' and 'label' arrays")
 
@@ -183,96 +221,111 @@ class FaultDataModule:
         signals = np.squeeze(signals)
         labels = np.asarray(content["label"]).reshape(-1).astype(np.int64)
         if signals.ndim not in {2, 3}:
-            raise ValueError(
-                "Expected [samples, signal_length] or "
-                f"[samples, channels, signal_length], got {signals.shape}"
-            )
+            raise ValueError(f"Expected [samples, signal_length] or [samples, channels, signal_length], got {signals.shape}")
 
         channels = 1 if signals.ndim == 2 else signals.shape[1]
         if channels != self.spec.num_channels:
-            raise ValueError(
-                f"{self.spec.name}: metadata declares {self.spec.num_channels} "
-                f"channels, but data contains {channels}"
-            )
+            raise ValueError(f"{self.spec.name}: metadata declares {self.spec.num_channels} channels, but data contains {channels}")
 
         if labels.shape[0] != signals.shape[0]:
             if not self.spec.repair_labels or strict_data:
-                raise ValueError(
-                    f"{self.spec.name}: {signals.shape[0]} signals but "
-                    f"{labels.shape[0]} labels"
-                )
-            labels = np.tile(
-                np.repeat(
-                    np.arange(self.spec.num_classes),
-                    self.spec.samples_per_class,
-                ),
-                self.spec.num_domains,
+                raise ValueError(f"{self.spec.name}: {signals.shape[0]} signals but {labels.shape[0]} labels")
+            labels = np.concatenate(
+                [
+                    np.repeat(
+                        np.arange(self.spec.num_classes),
+                        self.spec.samples_per_class_for_domain(domain),
+                    )
+                    for domain in range(self.spec.num_domains)
+                ]
             )
-            message = (
-                f"{self.spec.name}: reconstructed {labels.shape[0]} labels from the "
-                "declared domain/class block layout because the MAT label length "
-                "does not match the signal count"
-            )
+            message = f"{self.spec.name}: reconstructed {labels.shape[0]} labels from the declared domain/class block layout because the MAT label length does not match the signal count"
             warnings.warn(message)
             self.data_warnings.append(message)
         return signals, labels
 
+    @staticmethod
+    def _load_arrays(path: Path) -> Dict[str, np.ndarray]:
+        """Load either a MATLAB v5 file or the builder's large HDF5 container."""
+
+        try:
+            import h5py
+        except ImportError:
+            h5py = None  # type: ignore[assignment]
+
+        if h5py is not None and h5py.is_hdf5(path):
+            with h5py.File(path, "r") as handle:
+                return {
+                    name: np.asarray(handle[name])
+                    for name in ("data", "label")
+                    if name in handle
+                }
+        return sio.loadmat(path)
+
     def _validate_domain_layout(self) -> None:
         if self.raw_signals.shape[0] != self.spec.expected_samples:
-            raise ValueError(
-                f"{self.spec.name}: expected {self.spec.expected_samples} samples "
-                f"from metadata, found {self.raw_signals.shape[0]}"
-            )
+            raise ValueError(f"{self.spec.name}: expected {self.spec.expected_samples} samples from metadata, found {self.raw_signals.shape[0]}")
         expected_classes = np.arange(self.spec.num_classes)
         for domain in range(self.spec.num_domains):
             ids = self._domain_indices(domain)
             labels, counts = np.unique(self.labels[ids], return_counts=True)
+            expected_count = self.spec.samples_per_class_for_domain(domain)
             if not np.array_equal(labels, expected_classes) or not np.all(
-                counts == self.spec.samples_per_class
+                counts == expected_count
             ):
-                raise ValueError(
-                    f"{self.spec.name} domain {domain} is not a balanced class block: "
-                    f"labels={labels.tolist()}, counts={counts.tolist()}"
-                )
+                raise ValueError(f"{self.spec.name} domain {domain} is not a balanced class block: labels={labels.tolist()}, counts={counts.tolist()}")
 
     def _domain_indices(self, domain: int) -> np.ndarray:
-        start = domain * self.spec.samples_per_domain
-        stop = start + self.spec.samples_per_domain
+        start = self.spec.domain_offset(domain)
+        stop = start + self.spec.samples_for_domain(domain)
         return np.arange(start, stop, dtype=np.int64)
 
     def _source_split_indices(self) -> Tuple[np.ndarray, np.ndarray]:
-        rng = np.random.RandomState(self.seed)
-        domain_ids = self._domain_indices(self.source_domain)
         train: List[np.ndarray] = []
         validation: List[np.ndarray] = []
-        for class_id in range(self.spec.num_classes):
-            class_ids = domain_ids[self.labels[domain_ids] == class_id].copy()
-            rng.shuffle(class_ids)
-            class_limit = (
-                self.source_samples_per_class[class_id]
-                if self.source_samples_per_class is not None
-                else self.max_source_per_class
+        for domain in self.source_domains:
+            # Keep the legacy single-source split exactly reproducible.
+            rng_seed = (
+                self.seed
+                if len(self.source_domains) == 1
+                else self.seed + 1009 * (domain + 1)
             )
-            if class_limit is not None:
-                class_ids = class_ids[:class_limit]
-            if class_ids.shape[0] < 2:
-                raise ValueError(
-                    "Each source class needs at least two samples for train/validation"
+            rng = np.random.RandomState(rng_seed)
+            domain_ids = self._domain_indices(domain)
+            for class_id in range(self.spec.num_classes):
+                class_ids = domain_ids[self.labels[domain_ids] == class_id].copy()
+                rng.shuffle(class_ids)
+                class_limit = (
+                    self.source_samples_per_class[class_id]
+                    if self.source_samples_per_class is not None
+                    else self.max_source_per_class
                 )
-            validation_size = max(
-                1, int(round(class_ids.shape[0] * self.source_validation_ratio))
-            )
-            validation_size = min(validation_size, class_ids.shape[0] - 1)
-            validation.append(class_ids[:validation_size])
-            train.append(class_ids[validation_size:])
+                if class_limit is not None:
+                    class_ids = class_ids[:class_limit]
+                if class_ids.shape[0] < 2:
+                    raise ValueError(
+                        "Each source domain/class needs at least two samples for train/validation"
+                    )
+                validation_size = max(
+                    1, int(round(class_ids.shape[0] * self.source_validation_ratio))
+                )
+                validation_size = min(validation_size, class_ids.shape[0] - 1)
+                validation.append(class_ids[:validation_size])
+                train.append(class_ids[validation_size:])
         train_ids = np.concatenate(train)
         validation_ids = np.concatenate(validation)
+        rng = np.random.RandomState(self.seed)
         rng.shuffle(train_ids)
         rng.shuffle(validation_ids)
         return train_ids, validation_ids
 
+    def _represent(self, signals: np.ndarray) -> np.ndarray:
+        if self.representation == "frequency":
+            signals = np.abs(np.fft.fft(signals, axis=-1)).astype(np.float32)
+        return signals.astype(np.float32, copy=False)
+
     def _fit_normalizer(self, source_train_ids: np.ndarray) -> Dict[str, np.ndarray]:
-        source = self.raw_signals[source_train_ids]
+        source = self._represent(self.raw_signals[source_train_ids])
         if self.normalization == "zscore":
             return {
                 "offset": source.mean(axis=0, keepdims=True),
@@ -290,12 +343,21 @@ class FaultDataModule:
         }
 
     def _transform(self, signals: np.ndarray) -> torch.Tensor:
+        transformed = self._represent(signals)
         scale = np.maximum(self._normalizer["scale"], 1e-6)
-        transformed = (signals - self._normalizer["offset"]) / scale
+        transformed = (transformed - self._normalizer["offset"]) / scale
         tensor = torch.from_numpy(np.ascontiguousarray(transformed)).float()
         if tensor.ndim == 2:
             tensor = tensor.unsqueeze(1)
-        return tensor
+        if self.input_dimension == "1d":
+            return tensor
+        signal_length = tensor.shape[-1]
+        side = int(round(signal_length ** 0.5))
+        if side * side != signal_length:
+            raise ValueError(
+                f"Signal length {signal_length} cannot be reshaped to a square"
+            )
+        return tensor.reshape(tensor.shape[0], tensor.shape[1], side, side)
 
     def _make_dataset(
         self, sample_ids: Iterable[int], domain: int
@@ -312,17 +374,26 @@ class FaultDataModule:
         if self.target_samples_per_class is not None:
             return self.target_samples_per_class
         return tuple(
-            (self.spec.samples_per_class,) * self.spec.num_classes
-            for _ in self.target_domains
+            (self.spec.samples_per_class_for_domain(domain),)
+            * self.spec.num_classes
+            for domain in self.target_domains
         )
 
-    def _target_class_ids(self, domain: int) -> Tuple[np.ndarray, ...]:
+    def _target_class_ids(
+        self, domain: int, stream_position: Optional[int] = None
+    ) -> Tuple[np.ndarray, ...]:
         ids = self._domain_indices(domain)
-        rng = np.random.RandomState(self.seed + 1009 * (domain + 1))
+        rng = None
+        if self.stream_order == "shuffled":
+            seed = self.seed + 1009 * (domain + 1)
+            if stream_position is not None:
+                seed += 7919 * (stream_position + 1)
+            rng = np.random.RandomState(seed)
         by_class = []
         for class_id in range(self.spec.num_classes):
             class_ids = ids[self.labels[ids] == class_id].copy()
-            rng.shuffle(class_ids)
+            if rng is not None:
+                rng.shuffle(class_ids)
             by_class.append(class_ids)
         return tuple(by_class)
 
@@ -361,22 +432,32 @@ class FaultDataModule:
         for position, (domain, counts) in enumerate(
             zip(self.target_domains, self._target_counts())
         ):
-            if domain not in available:
-                available[domain] = self._target_class_ids(domain)
-                cursors[domain] = [0] * self.spec.num_classes
+            if self.allow_repeated_target_samples:
+                occurrence_ids = self._target_class_ids(domain, position)
+            else:
+                if domain not in available:
+                    available[domain] = self._target_class_ids(domain)
+                    cursors[domain] = [0] * self.spec.num_classes
+                occurrence_ids = available[domain]
             selected = []
             for class_id, count in enumerate(counts):
-                start = cursors[domain][class_id]
+                start = (
+                    0
+                    if self.allow_repeated_target_samples
+                    else cursors[domain][class_id]
+                )
                 stop = start + count
-                class_ids = available[domain][class_id]
+                class_ids = occurrence_ids[class_id]
                 if stop > len(class_ids):
-                    raise ValueError(
-                        f"Target domain {domain}, class {class_id} requests "
-                        f"{stop} distinct samples across repeated occurrences, "
-                        f"but only {len(class_ids)} are available"
+                    request = (
+                        f"{count} samples for this occurrence"
+                        if self.allow_repeated_target_samples
+                        else f"{stop} distinct samples across repeated occurrences"
                     )
+                    raise ValueError(f"Target domain {domain}, class {class_id} requests {request}, but only {len(class_ids)} are available")
                 selected.append(class_ids[start:stop])
-                cursors[domain][class_id] = stop
+                if not self.allow_repeated_target_samples:
+                    cursors[domain][class_id] = stop
             ids = self._order_target_ids(selected, domain, position)
             datasets[position] = self._make_dataset(ids, domain)
         return datasets
@@ -388,16 +469,37 @@ class FaultDataModule:
             if self.source_samples_per_class is not None
             else (self.max_source_per_class,) * self.spec.num_classes
             if self.max_source_per_class is not None
-            else (self.spec.samples_per_class,) * self.spec.num_classes
+            else (
+                self.spec.samples_per_class_for_domain(self.source_domain),
+            )
+            * self.spec.num_classes
         )
         return {
+            "source_domains": list(self.source_domains),
             "source_samples_per_class": list(source_counts),
+            "source_samples_per_class_by_domain": {
+                str(domain): [
+                    (
+                        self.source_samples_per_class[class_id]
+                        if self.source_samples_per_class is not None
+                        else min(
+                            self.max_source_per_class,
+                            self.spec.samples_per_class_for_domain(domain),
+                        )
+                        if self.max_source_per_class is not None
+                        else self.spec.samples_per_class_for_domain(domain)
+                    )
+                    for class_id in range(self.spec.num_classes)
+                ]
+                for domain in self.source_domains
+            },
             "target_samples_per_class": (
                 None
                 if self.max_target_per_domain is not None
                 else [list(counts) for counts in self._target_counts()]
             ),
             "max_target_per_domain": self.max_target_per_domain,
+            "allow_repeated_target_samples": self.allow_repeated_target_samples,
         }
 
     def target_dataset(
@@ -409,10 +511,7 @@ class FaultDataModule:
             if not 0 <= stream_position < len(self.target_domains):
                 raise ValueError(f"Invalid target stream position: {stream_position}")
             if self.target_domains[stream_position] != domain:
-                raise ValueError(
-                    f"Target stream position {stream_position} is domain "
-                    f"{self.target_domains[stream_position]}, not {domain}"
-                )
+                raise ValueError(f"Target stream position {stream_position} is domain {self.target_domains[stream_position]}, not {domain}")
             return self._target_datasets[stream_position]
 
         ids = self._domain_indices(domain)
@@ -428,7 +527,9 @@ class FaultDataModule:
             ids = np.asarray(
                 [
                     by_class[class_id][offset]
-                    for offset in range(self.spec.samples_per_class)
+                    for offset in range(
+                        self.spec.samples_per_class_for_domain(domain)
+                    )
                     for class_id in range(self.spec.num_classes)
                 ],
                 dtype=np.int64,

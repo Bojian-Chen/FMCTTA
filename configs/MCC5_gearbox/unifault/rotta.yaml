@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_gearbox/unifault/rotta.yaml
+base:
+  - base.yaml
+  - ../../methods/rotta.yaml
+
+runtime:
+  run_name: mcc5-gearbox-unifault-small-rotta
+

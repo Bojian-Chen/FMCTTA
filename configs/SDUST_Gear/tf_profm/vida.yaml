@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Gear/tf_profm/vida.yaml
+base:
+  - base.yaml
+  - ../../methods/vida.yaml
+
+runtime:
+  run_name: sdust-gear-tf-profm-vida
+

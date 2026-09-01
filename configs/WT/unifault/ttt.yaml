@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/unifault/ttt.yaml
+base:
+  - base.yaml
+  - ../../methods/ttt.yaml
+
+runtime:
+  run_name: wt-unifault-small-ttt
+

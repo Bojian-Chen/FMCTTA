@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/unifault/rotta.yaml
+base:
+  - base.yaml
+  - ../../methods/rotta.yaml
+
+runtime:
+  run_name: pu-unifault-small-rotta
+

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/tf_profm/knn.yaml
+base:
+  - base.yaml
+  - ../../methods/knn.yaml
+
+runtime:
+  run_name: wt-tf-profm-knn
+

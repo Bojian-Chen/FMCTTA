@@ -1,0 +1,19 @@
+# Shared ViDA protocol.
+protocol:
+  method: vida
+
+adaptation:
+  adaptation_parameter_scope: all
+  vida_learning_rate: 0.00001
+  vida_low_rank: 1
+  vida_high_rank: 128
+  vida_teacher_momentum: 0.999
+  vida_adapter_momentum: 0.999
+  vida_uncertainty_threshold: 0.2
+  vida_uncertainty_scale: 0.1
+  vida_augmentations: 10
+  vida_augmentation_noise_std: 0.005
+  vida_augmentation_scale_std: 0.05
+  vida_augmentation_mask_probability: 0.0
+  vida_augmentation_shift_ratio: 0.0
+

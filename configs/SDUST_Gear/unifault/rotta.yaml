@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Gear/unifault/rotta.yaml
+base:
+  - base.yaml
+  - ../../methods/rotta.yaml
+
+runtime:
+  run_name: sdust-gear-unifault-small-rotta
+

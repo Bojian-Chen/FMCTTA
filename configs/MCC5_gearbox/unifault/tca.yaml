@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_gearbox/unifault/tca.yaml
+base:
+  - base.yaml
+  - ../../methods/tca.yaml
+
+runtime:
+  run_name: mcc5-gearbox-unifault-small-tca
+

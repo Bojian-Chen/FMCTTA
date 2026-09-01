@@ -1,0 +1,15 @@
+# Run: python main.py --config configs/MCC5_motor/sar.yaml
+base: base.yaml
+
+protocol:
+  method: sar
+
+adaptation:
+  adaptation_parameter_scope: layernorm
+  sar_rho: 0.05
+  sar_reset_threshold: 0.2
+  sar_ema_momentum: 0.9
+
+runtime:
+  run_name: mcc5-motor-sar
+

@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/tf_profm/sar.yaml
+base:
+  - base.yaml
+  - ../../methods/sar.yaml
+
+runtime:
+  run_name: pu-tf-profm-sar
+

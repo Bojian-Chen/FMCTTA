@@ -1,0 +1,11 @@
+# Shared SAR protocol.
+protocol:
+  method: sar
+
+adaptation:
+  adaptation_parameter_scope: layernorm
+  sar_rho: 0.05
+  sar_entropy_margin: null
+  sar_reset_threshold: 0.2
+  sar_ema_momentum: 0.9
+

@@ -1,0 +1,12 @@
+# Run: python main.py --config configs/HUST_Gearbox/tent.yaml
+# Run after configs/HUST_Gearbox/source.yaml; the inherited checkpoint path assumes output_dir, seed, and source run_name remain unchanged.
+base: base.yaml
+
+protocol:
+  method: tent # ["source", "knn", "tent", "eata", "sar", "cotta", "vida", "continual_mae"]
+
+adaptation:
+  adaptation_parameter_scope: layernorm # ["default", "layernorm", "classifier", "backbone", "all"]
+
+runtime:
+  run_name: hust-gearbox-tent

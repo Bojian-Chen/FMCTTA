@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/tf_profm/ttt.yaml
+base:
+  - base.yaml
+  - ../../methods/ttt.yaml
+
+runtime:
+  run_name: pu-tf-profm-ttt
+

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Run UniFreq-based continual test-time adaptation for fault diagnosis."""
+"""Run foundation-model continual test-time adaptation for fault diagnosis."""
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
@@ -15,7 +16,9 @@ CONFIG_SECTIONS = {"protocol", "data", "model", "adaptation", "runtime"}
 def build_parser() -> argparse.ArgumentParser:
     project_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(
-        description="Foundation-model continual test-time adaptation with UniFreq",
+        description=(
+            "Continual test-time adaptation with UniFreq, UniFault, or TF-ProFM"
+        ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -25,8 +28,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--domains",
         default="",
         help=(
-            "Comma-separated stream: first domain is labeled source; all "
-            "remaining domains are unlabeled online targets"
+            "Comma-separated domain sequence. Without --source_domains, the "
+            "first domain is the labeled source and the remainder are unlabeled "
+            "online targets. With --source_domains, this contains only the "
+            "target stream. Uses the dataset default when omitted."
+        ),
+    )
+    protocol.add_argument(
+        "--source_domains",
+        default="",
+        help=(
+            "Comma-separated labeled source domains combined for supervised "
+            "training. When set, --domains is the target stream and the two "
+            "sets must not overlap."
         ),
     )
     protocol.add_argument(
@@ -35,34 +49,38 @@ def build_parser() -> argparse.ArgumentParser:
             "source",
             "knn",
             "tent",
+            "note",
             "eata",
             "sar",
             "cotta",
             "vida",
             "continual_mae",
+            "rotta",
+            "tca",
+            "ttt",
         ],
         default="source",
     )
     protocol.add_argument(
-        "--stream-order",
+        "--stream_order",
         choices=["shuffled", "class_block", "interleaved"],
         default=None,
     )
-    protocol.add_argument("--stream-batch-size", type=int, default=16)
+    protocol.add_argument("--stream_batch_size", type=int, default=16)
     protocol.add_argument("--seed", type=int, default=2025)
 
     data = parser.add_argument_group("data")
     data.add_argument(
-        "--data-root",
-        default=str((project_dir.parent / "OCTTA" / "data").resolve()),
-        help="Directory containing the processed MAT files",
+        "--data_root",
+        default=str((project_dir / "data" / "ctta_custom").resolve()),
+        help="Directory containing the PU/WT MAT files",
     )
     data.add_argument(
-        "--dataset-manifest",
+        "--dataset_manifest",
         default="",
         help=(
             "JSON manifest emitted by ctta_data_builder; when set, its dynamic "
-            "DatasetSpec and colocated MAT file override --dataset/--data-root"
+            "DatasetSpec and colocated MAT file override --dataset/--data_root"
         ),
     )
     data.add_argument(
@@ -71,12 +89,20 @@ def build_parser() -> argparse.ArgumentParser:
         default="none",
         help="Optional statistics fitted only on source-train",
     )
-    data.add_argument("--source-validation-ratio", type=float, default=0.2)
-    data.add_argument("--strict-data", action="store_true")
-    data.add_argument("--max-source-per-class", type=int, default=None)
-    data.add_argument("--max-target-per-domain", type=int, default=None)
+    data.add_argument("--source_validation_ratio", type=float, default=0.2)
+    data.add_argument("--strict_data", action="store_true")
     data.add_argument(
-        "--source-samples-per-class",
+        "--allow_repeated_target_samples",
+        action="store_true",
+        help=(
+            "Allow target samples to be selected again when a target domain "
+            "occurs repeatedly in the stream"
+        ),
+    )
+    data.add_argument("--max_source_per_class", type=int, default=None)
+    data.add_argument("--max_target_per_domain", type=int, default=None)
+    data.add_argument(
+        "--source_samples_per_class",
         default="",
         help=(
             "Source samples per class: one count for all classes, or a "
@@ -84,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     data.add_argument(
-        "--target-samples-per-class",
+        "--target_samples_per_class",
         default="",
         help=(
             "Target samples per class: one count for every target-stream "
@@ -93,25 +119,66 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    model = parser.add_argument_group("UniFreq and source classifier")
+    model = parser.add_argument_group("foundation model and source classifier")
     model.add_argument(
-        "--model-id",
-        default="bojian1/UniFreq-tiny",
-        help="Hugging Face model ID or local model directory",
+        "--foundation_model",
+        choices=["unifreq", "unifault", "tf_profm"],
+        default="unifreq",
+        help="Foundation-model family used as the fault feature encoder",
     )
-    model.add_argument("--model-revision", default="")
     model.add_argument(
-        "--hf-token",
+        "--model_id",
+        default="bojian1/UniFreq-tiny",
+        help="UniFreq Hugging Face model ID or local model directory",
+    )
+    model.add_argument("--model_revision", default="")
+    model.add_argument(
+        "--hf_token",
         default="",
         help="Optional Hugging Face token; public models need none",
     )
-    model.add_argument("--cache-dir", default="")
-    model.add_argument("--local-files-only", action="store_true")
+    model.add_argument("--cache_dir", default="")
+    model.add_argument("--local_files_only", action="store_true")
+    model.add_argument(
+        "--pretrained_checkpoint",
+        default="",
+        help=(
+            "UniFault/TF-ProFM PHMFD .pt checkpoint or run directory; "
+            "'auto' selects the bundled PHMFD log preset"
+        ),
+    )
+    model.add_argument(
+        "--foundation_model_size",
+        choices=["auto", "tiny", "small", "base"],
+        default="auto",
+        help=(
+            "UniFault architecture preset when no checkpoint supplies it; "
+            "also selects the UniFault 'auto' checkpoint"
+        ),
+    )
+    model.add_argument(
+        "--model_input_length",
+        type=int,
+        default=0,
+        help=(
+            "UniFault/TF-ProFM fixed input length; 0 infers it from the "
+            "checkpoint (1024/2048 in the migrated presets)"
+        ),
+    )
+    model.add_argument(
+        "--model_input_normalization",
+        choices=["auto", "none", "sample_zscore", "sample_minmax"],
+        default="auto",
+        help=(
+            "Model-side per-sample preprocessing; auto reproduces PHMFD "
+            "UniFault min-max and TF-ProFM z-score preprocessing"
+        ),
+    )
     model.add_argument(
         "--classifier", choices=["mlp", "linear", "cosine"], default="mlp"
     )
     model.add_argument(
-        "--feature-branch",
+        "--feature_branch",
         choices=["fused", "time", "frequency"],
         default="fused",
         help=(
@@ -119,112 +186,158 @@ def build_parser() -> argparse.ArgumentParser:
             "branches, while time or frequency runs only that branch"
         ),
     )
-    model.add_argument("--classifier-dropout", type=float, default=0.1)
-    model.add_argument("--source-epochs", type=int, default=30)
-    model.add_argument("--source-batch-size", type=int, default=64)
-    model.add_argument("--eval-batch-size", type=int, default=128)
-    model.add_argument("--source-learning-rate", type=float, default=1e-2)
+    model.add_argument("--classifier_dropout", type=float, default=0.1)
+    model.add_argument("--source_epochs", type=int, default=30)
+    model.add_argument("--source_batch_size", type=int, default=64)
+    model.add_argument("--eval_batch_size", type=int, default=128)
+    model.add_argument("--source_learning_rate", type=float, default=1e-2)
     model.add_argument(
-        "--source-backbone-lr-scale",
+        "--source_backbone_lr_scale",
         type=float,
         default=0.01,
-        help="0 freezes UniFreq; positive values fine-tune it at this LR scale",
+        help=(
+            "0 freezes the foundation backbone; positive values fine-tune it "
+            "at this LR scale"
+        ),
     )
-    model.add_argument("--source-weight-decay", type=float, default=1e-4)
-    model.add_argument("--source-gradient-clip", type=float, default=1.0)
+    model.add_argument("--source_weight_decay", type=float, default=1e-4)
+    model.add_argument("--source_gradient_clip", type=float, default=1.0)
     model.add_argument(
-        "--source-checkpoint",
+        "--source_checkpoint",
         default="",
         help="Directory with source_model.safetensors and source_model.json",
     )
 
     adaptation = parser.add_argument_group("online adaptation")
-    adaptation.add_argument("--adaptation-learning-rate", type=float, default=5e-4)
-    adaptation.add_argument("--adaptation-weight-decay", type=float, default=0.0)
-    adaptation.add_argument("--adaptation-steps", type=int, default=1)
+    adaptation.add_argument("--adaptation_learning_rate", type=float, default=5e-4)
+    adaptation.add_argument("--adaptation_weight_decay", type=float, default=0.0)
+    adaptation.add_argument("--adaptation_steps", type=int, default=1)
     adaptation.add_argument(
-        "--knn-neighbors",
+        "--knn_neighbors",
         type=int,
         default=5,
         help="Number of labeled source-train neighbors used by the kNN baseline",
     )
     adaptation.add_argument(
-        "--adaptation-parameter-scope",
+        "--adaptation_parameter_scope",
         choices=["default", "layernorm", "classifier", "backbone", "all"],
         default="default",
         help=(
-            "default is LayerNorm for TENT/EATA/SAR and all base parameters "
-            "for CoTTA/ViDA/Continual-MAE; source and kNN do not adapt"
+            "default is LayerNorm for TENT/NOTE/EATA/SAR and all base parameters "
+            "for CoTTA/ViDA/Continual-MAE/TCA; TTT defaults to the backbone, "
+            "while RoTTA defaults to LayerNorm; source and kNN do not adapt"
         ),
     )
-    adaptation.add_argument("--eata-fisher-alpha", type=float, default=1.0)
-    adaptation.add_argument("--eata-fisher-batches", type=int, default=16)
-    adaptation.add_argument("--eata-entropy-margin", type=float, default=None)
-    adaptation.add_argument("--eata-diversity-margin", type=float, default=0.95)
-    adaptation.add_argument("--sar-rho", type=float, default=0.05)
-    adaptation.add_argument("--sar-entropy-margin", type=float, default=None)
-    adaptation.add_argument("--sar-reset-threshold", type=float, default=0.2)
-    adaptation.add_argument("--sar-ema-momentum", type=float, default=0.9)
-    adaptation.add_argument("--cotta-teacher-momentum", type=float, default=0.999)
-    adaptation.add_argument("--cotta-restore-probability", type=float, default=0.01)
-    adaptation.add_argument("--cotta-anchor-threshold", type=float, default=0.92)
-    adaptation.add_argument("--cotta-augmentations", type=int, default=8)
-    adaptation.add_argument("--cotta-augmentation-noise-std", type=float, default=0.005)
-    adaptation.add_argument("--cotta-augmentation-scale-std", type=float, default=0.05)
+    adaptation.add_argument("--note_memory_size", type=int, default=64)
+    adaptation.add_argument("--note_update_interval", type=int, default=64)
+    adaptation.add_argument("--note_temperature", type=float, default=1.0)
+    adaptation.add_argument("--rotta_memory_size", type=int, default=64)
+    adaptation.add_argument("--rotta_update_frequency", type=int, default=64)
+    adaptation.add_argument("--rotta_nu", type=float, default=0.001)
+    adaptation.add_argument("--rotta_bn_alpha", type=float, default=0.05)
+    adaptation.add_argument("--rotta_lambda_t", type=float, default=1.0)
+    adaptation.add_argument("--rotta_lambda_u", type=float, default=1.0)
+    adaptation.add_argument("--rotta_augmentation_noise_std", type=float, default=0.005)
+    adaptation.add_argument("--rotta_augmentation_scale_std", type=float, default=0.05)
     adaptation.add_argument(
-        "--cotta-augmentation-mask-probability", type=float, default=0.0
-    )
-    adaptation.add_argument("--cotta-augmentation-shift-ratio", type=float, default=0.0)
-    adaptation.add_argument("--vida-learning-rate", type=float, default=1e-5)
-    adaptation.add_argument("--vida-low-rank", type=int, default=1)
-    adaptation.add_argument("--vida-high-rank", type=int, default=128)
-    adaptation.add_argument("--vida-teacher-momentum", type=float, default=0.999)
-    adaptation.add_argument("--vida-adapter-momentum", type=float, default=0.999)
-    adaptation.add_argument(
-        "--vida-uncertainty-threshold", type=float, default=0.2
-    )
-    adaptation.add_argument("--vida-uncertainty-scale", type=float, default=0.1)
-    adaptation.add_argument("--vida-augmentations", type=int, default=10)
-    adaptation.add_argument(
-        "--vida-augmentation-noise-std", type=float, default=0.005
+        "--rotta_augmentation_mask_probability", type=float, default=0.0
     )
     adaptation.add_argument(
-        "--vida-augmentation-scale-std", type=float, default=0.05
+        "--rotta_augmentation_shift_ratio", type=float, default=0.0
+    )
+    adaptation.add_argument("--tca_teacher_momentum", type=float, default=0.999)
+    adaptation.add_argument("--tca_centroid_momentum", type=float, default=0.9)
+    adaptation.add_argument(
+        "--tca_topology_weight_momentum", type=float, default=0.8
+    )
+    adaptation.add_argument("--tca_alignment_weight", type=float, default=0.025)
+    adaptation.add_argument("--tca_topology_weight", type=float, default=0.15)
+    adaptation.add_argument(
+        "--tca_uniformity_temperature", type=float, default=2.0
+    )
+    adaptation.add_argument("--tca_symmetric_alpha", type=float, default=0.5)
+    adaptation.add_argument("--tca_augmentation_noise_std", type=float, default=0.005)
+    adaptation.add_argument("--tca_augmentation_scale_std", type=float, default=0.05)
+    adaptation.add_argument(
+        "--tca_augmentation_mask_probability", type=float, default=0.0
     )
     adaptation.add_argument(
-        "--vida-augmentation-mask-probability", type=float, default=0.0
+        "--tca_augmentation_shift_ratio", type=float, default=0.0
     )
     adaptation.add_argument(
-        "--vida-augmentation-shift-ratio", type=float, default=0.0
+        "--ttt_source_auxiliary_weight",
+        type=float,
+        default=1.0,
+        help="Weight of the four-way shift-prediction loss during source training",
+    )
+    adaptation.add_argument("--eata_fisher_alpha", type=float, default=1.0)
+    adaptation.add_argument("--eata_fisher_batches", type=int, default=16)
+    adaptation.add_argument("--eata_entropy_margin", type=float, default=None)
+    adaptation.add_argument("--eata_diversity_margin", type=float, default=0.95)
+    adaptation.add_argument("--sar_rho", type=float, default=0.05)
+    adaptation.add_argument("--sar_entropy_margin", type=float, default=None)
+    adaptation.add_argument("--sar_reset_threshold", type=float, default=0.2)
+    adaptation.add_argument("--sar_ema_momentum", type=float, default=0.9)
+    adaptation.add_argument("--cotta_teacher_momentum", type=float, default=0.999)
+    adaptation.add_argument("--cotta_restore_probability", type=float, default=0.01)
+    adaptation.add_argument("--cotta_anchor_threshold", type=float, default=0.92)
+    adaptation.add_argument("--cotta_augmentations", type=int, default=8)
+    adaptation.add_argument("--cotta_augmentation_noise_std", type=float, default=0.005)
+    adaptation.add_argument("--cotta_augmentation_scale_std", type=float, default=0.05)
+    adaptation.add_argument(
+        "--cotta_augmentation_mask_probability", type=float, default=0.0
+    )
+    adaptation.add_argument("--cotta_augmentation_shift_ratio", type=float, default=0.0)
+    adaptation.add_argument("--vida_learning_rate", type=float, default=1e-5)
+    adaptation.add_argument("--vida_low_rank", type=int, default=1)
+    adaptation.add_argument("--vida_high_rank", type=int, default=128)
+    adaptation.add_argument("--vida_teacher_momentum", type=float, default=0.999)
+    adaptation.add_argument("--vida_adapter_momentum", type=float, default=0.999)
+    adaptation.add_argument(
+        "--vida_uncertainty_threshold", type=float, default=0.2
+    )
+    adaptation.add_argument("--vida_uncertainty_scale", type=float, default=0.1)
+    adaptation.add_argument("--vida_augmentations", type=int, default=10)
+    adaptation.add_argument(
+        "--vida_augmentation_noise_std", type=float, default=0.005
     )
     adaptation.add_argument(
-        "--continual-mae-mask-ratio", type=float, default=0.5
-    )
-    adaptation.add_argument("--continual-mae-augmentations", type=int, default=10)
-    adaptation.add_argument(
-        "--continual-mae-reconstruction-weight", type=float, default=0.5
+        "--vida_augmentation_scale_std", type=float, default=0.05
     )
     adaptation.add_argument(
-        "--continual-mae-restore-probability", type=float, default=0.1
+        "--vida_augmentation_mask_probability", type=float, default=0.0
     )
     adaptation.add_argument(
-        "--continual-mae-augmentation-noise-std", type=float, default=0.005
+        "--vida_augmentation_shift_ratio", type=float, default=0.0
     )
     adaptation.add_argument(
-        "--continual-mae-augmentation-scale-std", type=float, default=0.05
+        "--continual_mae_mask_ratio", type=float, default=0.5
+    )
+    adaptation.add_argument("--continual_mae_augmentations", type=int, default=10)
+    adaptation.add_argument(
+        "--continual_mae_reconstruction_weight", type=float, default=0.5
     )
     adaptation.add_argument(
-        "--continual-mae-augmentation-mask-probability", type=float, default=0.0
+        "--continual_mae_restore_probability", type=float, default=0.1
     )
     adaptation.add_argument(
-        "--continual-mae-augmentation-shift-ratio", type=float, default=0.0
+        "--continual_mae_augmentation_noise_std", type=float, default=0.005
+    )
+    adaptation.add_argument(
+        "--continual_mae_augmentation_scale_std", type=float, default=0.05
+    )
+    adaptation.add_argument(
+        "--continual_mae_augmentation_mask_probability", type=float, default=0.0
+    )
+    adaptation.add_argument(
+        "--continual_mae_augmentation_shift_ratio", type=float, default=0.0
     )
 
     runtime = parser.add_argument_group("runtime and output")
     runtime.add_argument("--device", default="auto", help="auto, cpu, cuda, cuda:0")
     runtime.add_argument("--workers", type=int, default=0)
-    runtime.add_argument("--output-dir", default=str(project_dir / "outputs"))
-    runtime.add_argument("--run-name", default="")
+    runtime.add_argument("--output_dir", default=str(project_dir / "outputs"))
+    runtime.add_argument("--run_name", default="")
     runtime.add_argument(
         "--config",
         default="",
@@ -233,10 +346,30 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _normalize_legacy_dashed_options(
+    argv: Optional[Sequence[str]], parser: argparse.ArgumentParser
+) -> list[str]:
+    """Accept old ``--kebab-case`` options while documenting ``--snake_case``."""
+    normalized = list(sys.argv[1:] if argv is None else argv)
+    known_options = parser._option_string_actions
+    for index, item in enumerate(normalized):
+        if item == "--":
+            break
+        if not item.startswith("--"):
+            continue
+        option, separator, value = item.partition("=")
+        canonical_option = "--" + option[2:].replace("-", "_")
+        if canonical_option in known_options:
+            normalized[index] = canonical_option + (
+                separator + value if separator else ""
+            )
+    return normalized
+
+
 def _as_cli_value(name: str, value: Any) -> Any:
     if isinstance(value, (str, bytes)):
         return value
-    if name == "domains" and isinstance(value, Sequence):
+    if name in {"domains", "source_domains"} and isinstance(value, Sequence):
         return ",".join(str(item) for item in value)
     if name == "source_samples_per_class":
         if isinstance(value, Sequence):
@@ -284,17 +417,30 @@ def _load_yaml_defaults(
 
     base = content.pop("base", None)
     if base is None:
-        inherited_values = {}
+        base_paths: Sequence[str] = ()
     elif isinstance(base, str) and base.strip():
-        inherited_values = dict(
+        base_paths = (base,)
+    elif (
+        isinstance(base, Sequence)
+        and not isinstance(base, (str, bytes))
+        and base
+        and all(isinstance(item, str) and item.strip() for item in base)
+    ):
+        base_paths = tuple(base)
+    else:
+        raise ValueError(
+            "YAML base must be a non-empty relative file path or list of paths"
+        )
+
+    inherited_values: dict[str, Any] = {}
+    for base_path in base_paths:
+        inherited_values.update(
             _load_yaml_defaults(
-                path.parent / base,
+                path.parent / base_path,
                 parser,
                 (*inherited_paths, path),
             )
         )
-    else:
-        raise ValueError("YAML base must be a non-empty relative file path")
 
     values = dict(inherited_values)
     for section, section_values in content.items():
@@ -319,6 +465,7 @@ def _load_yaml_defaults(
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = build_parser()
+    argv = _normalize_legacy_dashed_options(argv, parser)
     config_parser = argparse.ArgumentParser(add_help=False)
     config_parser.add_argument("--config", default="")
     config_args, _ = config_parser.parse_known_args(argv)
@@ -336,6 +483,8 @@ def validate_args(args: argparse.Namespace) -> None:
         "eval_batch_size": args.eval_batch_size,
         "stream_batch_size": args.stream_batch_size,
         "adaptation_steps": args.adaptation_steps,
+        "rotta_memory_size": args.rotta_memory_size,
+        "rotta_update_frequency": args.rotta_update_frequency,
     }
     invalid = [name for name, value in positive.items() if value < 1]
     if invalid:
@@ -344,6 +493,34 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("workers cannot be negative")
     if args.source_backbone_lr_scale < 0:
         raise ValueError("source_backbone_lr_scale cannot be negative")
+    if args.model_input_length < 0:
+        raise ValueError("model_input_length cannot be negative")
+    if args.foundation_model == "unifreq":
+        if args.pretrained_checkpoint:
+            raise ValueError(
+                "UniFreq uses model_id, not pretrained_checkpoint"
+            )
+        if args.foundation_model_size != "auto":
+            raise ValueError(
+                "foundation_model_size is only used by UniFault/TF-ProFM"
+            )
+        if args.model_input_length:
+            raise ValueError(
+                "model_input_length is only used by UniFault/TF-ProFM"
+            )
+        if args.model_input_normalization != "auto":
+            raise ValueError(
+                "model_input_normalization is only used by UniFault/TF-ProFM"
+            )
+    elif args.feature_branch != "fused":
+        raise ValueError(
+            "feature_branch is UniFreq-specific; use fused with "
+            "UniFault/TF-ProFM"
+        )
+    if args.method == "continual_mae" and args.foundation_model != "unifreq":
+        raise ValueError(
+            "continual_mae currently requires UniFreq global-FFT tokens"
+        )
     if args.max_source_per_class is not None and args.source_samples_per_class:
         raise ValueError(
             "Use either max_source_per_class or source_samples_per_class, not both"
@@ -361,6 +538,54 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError(f"{args.method} does not use an adaptation parameter scope")
     if args.knn_neighbors < 1:
         raise ValueError("knn_neighbors must be positive")
+    if args.note_memory_size < 1 or args.note_update_interval < 1:
+        raise ValueError("NOTE memory size and update interval must be positive")
+    if args.note_temperature <= 0:
+        raise ValueError("note_temperature must be positive")
+    if args.ttt_source_auxiliary_weight < 0:
+        raise ValueError("ttt_source_auxiliary_weight cannot be negative")
+    if args.method == "ttt" and not args.source_checkpoint:
+        if args.source_backbone_lr_scale <= 0:
+            raise ValueError(
+                "TTT source training requires source_backbone_lr_scale > 0"
+            )
+    if args.method == "ttt" and args.adaptation_parameter_scope == "classifier":
+        raise ValueError("TTT cannot adapt the task classifier scope")
+    if not 0 <= args.rotta_nu <= 1:
+        raise ValueError("rotta_nu must be in [0, 1]")
+    if not 0 <= args.rotta_bn_alpha <= 1:
+        raise ValueError("rotta_bn_alpha must be in [0, 1]")
+    if args.rotta_lambda_t < 0 or args.rotta_lambda_u < 0:
+        raise ValueError("RoTTA memory weights cannot be negative")
+    for name in (
+        "rotta_augmentation_noise_std",
+        "rotta_augmentation_scale_std",
+        "tca_augmentation_noise_std",
+        "tca_augmentation_scale_std",
+    ):
+        if getattr(args, name) < 0:
+            raise ValueError(f"{name} cannot be negative")
+    for name in (
+        "rotta_augmentation_mask_probability",
+        "rotta_augmentation_shift_ratio",
+        "tca_augmentation_mask_probability",
+        "tca_augmentation_shift_ratio",
+    ):
+        if not 0 <= getattr(args, name) <= 1:
+            raise ValueError(f"{name} must be in [0, 1]")
+    for name in (
+        "tca_teacher_momentum",
+        "tca_centroid_momentum",
+        "tca_topology_weight_momentum",
+    ):
+        if not 0 <= getattr(args, name) < 1:
+            raise ValueError(f"{name} must be in [0, 1)")
+    if args.tca_alignment_weight < 0 or args.tca_topology_weight < 0:
+        raise ValueError("TCA loss weights cannot be negative")
+    if args.tca_uniformity_temperature <= 0:
+        raise ValueError("tca_uniformity_temperature must be positive")
+    if not 0 <= args.tca_symmetric_alpha <= 1:
+        raise ValueError("tca_symmetric_alpha must be in [0, 1]")
     if args.eata_fisher_batches < 1:
         raise ValueError("eata_fisher_batches must be positive")
     if args.sar_rho < 0 or args.sar_reset_threshold < 0:

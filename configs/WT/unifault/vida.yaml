@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/unifault/vida.yaml
+base:
+  - base.yaml
+  - ../../methods/vida.yaml
+
+runtime:
+  run_name: wt-unifault-small-vida
+

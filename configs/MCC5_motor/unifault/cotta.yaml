@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_motor/unifault/cotta.yaml
+base:
+  - base.yaml
+  - ../../methods/cotta.yaml
+
+runtime:
+  run_name: mcc5-motor-unifault-small-cotta
+

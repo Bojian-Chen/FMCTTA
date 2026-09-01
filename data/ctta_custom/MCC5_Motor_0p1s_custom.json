@@ -1,0 +1,2121 @@
+{
+  "format_version": 1,
+  "dataset": "MCC5-Motor",
+  "name": "MCC5_Motor_0p1s_custom",
+  "raw_root": "/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "mat_file": "/data1/PHMT/FMCTTA/data/ctta_custom/MCC5_Motor_0p1s_custom.mat",
+  "sampling_frequency_hz": 12800,
+  "window_seconds": 0.1,
+  "window_size_points": 1280,
+  "stride_seconds": 0.1,
+  "overlap": false,
+  "resampling": "none",
+  "normalization": "none",
+  "channels": [
+    "motor_vibration_x",
+    "motor_vibration_y",
+    "motor_vibration_z"
+  ],
+  "num_channels": 3,
+  "classes": [
+    {
+      "label": 0,
+      "name": "health",
+      "original_label": 0
+    },
+    {
+      "label": 1,
+      "name": "bearing_ball_H",
+      "original_label": 1
+    },
+    {
+      "label": 2,
+      "name": "bearing_ball_L",
+      "original_label": 2
+    },
+    {
+      "label": 3,
+      "name": "bearing_inner_H",
+      "original_label": 3
+    },
+    {
+      "label": 4,
+      "name": "bearing_inner_L",
+      "original_label": 4
+    },
+    {
+      "label": 5,
+      "name": "bearing_outer_H",
+      "original_label": 5
+    },
+    {
+      "label": 6,
+      "name": "bearing_outer_L",
+      "original_label": 6
+    },
+    {
+      "label": 7,
+      "name": "bearing_outer_H_and_inner_H",
+      "original_label": 7
+    },
+    {
+      "label": 8,
+      "name": "bend",
+      "original_label": 8
+    },
+    {
+      "label": 9,
+      "name": "broken_bar",
+      "original_label": 9
+    },
+    {
+      "label": 10,
+      "name": "broken_bar_and_bearing_inner_H",
+      "original_label": 10
+    },
+    {
+      "label": 11,
+      "name": "broken_bar_and_bearing_outer_H",
+      "original_label": 11
+    },
+    {
+      "label": 12,
+      "name": "dynamic_eccentricity",
+      "original_label": 12
+    },
+    {
+      "label": 13,
+      "name": "dynamic_eccentricity_and_bearing_inner_H",
+      "original_label": 13
+    },
+    {
+      "label": 14,
+      "name": "dynamic_eccentricity_and_bearing_outer_H",
+      "original_label": 14
+    },
+    {
+      "label": 15,
+      "name": "static_eccentricity_H",
+      "original_label": 15
+    },
+    {
+      "label": 16,
+      "name": "static_eccentricity_L",
+      "original_label": 16
+    },
+    {
+      "label": 17,
+      "name": "static_eccentricity_H_and_bearing_inner_H",
+      "original_label": 17
+    },
+    {
+      "label": 18,
+      "name": "static_eccentricity_H_and_bearing_outer_H",
+      "original_label": 18
+    },
+    {
+      "label": 19,
+      "name": "voltage_unbalance_L",
+      "original_label": 19
+    },
+    {
+      "label": 20,
+      "name": "winding_H",
+      "original_label": 20
+    },
+    {
+      "label": 21,
+      "name": "winding_L",
+      "original_label": 21
+    },
+    {
+      "label": 22,
+      "name": "winding_H_and_bearing_inner_H",
+      "original_label": 22
+    },
+    {
+      "label": 23,
+      "name": "winding_H_and_bearing_outer_H",
+      "original_label": 23
+    }
+  ],
+  "domains": [
+    {
+      "domain_label": 0,
+      "name": "steady_1000rpm_20Nm",
+      "original_domain": 0
+    },
+    {
+      "domain_label": 1,
+      "name": "torque_2000rpm_20Nm",
+      "original_domain": 1
+    },
+    {
+      "domain_label": 2,
+      "name": "torque_3000rpm_20Nm",
+      "original_domain": 2
+    },
+    {
+      "domain_label": 3,
+      "name": "torque_3000rpm_40Nm",
+      "original_domain": 3
+    },
+    {
+      "domain_label": 4,
+      "name": "torque_2000rpm_40Nm",
+      "original_domain": 4
+    },
+    {
+      "domain_label": 5,
+      "name": "torque_1000rpm_40Nm",
+      "original_domain": 5
+    },
+    {
+      "domain_label": 6,
+      "name": "speed_1000rpm_40Nm",
+      "original_domain": 6
+    },
+    {
+      "domain_label": 7,
+      "name": "speed_2000rpm_40Nm",
+      "original_domain": 7
+    },
+    {
+      "domain_label": 8,
+      "name": "speed_3000rpm_40Nm",
+      "original_domain": 8
+    },
+    {
+      "domain_label": 9,
+      "name": "speed_2000rpm_20Nm",
+      "original_domain": 9
+    },
+    {
+      "domain_label": 10,
+      "name": "speed_1000rpm_20Nm",
+      "original_domain": 10
+    }
+  ],
+  "domain_labels": {
+    "0": "steady_1000rpm_20Nm",
+    "1": "torque_2000rpm_20Nm",
+    "2": "torque_3000rpm_20Nm",
+    "3": "torque_3000rpm_40Nm",
+    "4": "torque_2000rpm_40Nm",
+    "5": "torque_1000rpm_40Nm",
+    "6": "speed_1000rpm_40Nm",
+    "7": "speed_2000rpm_40Nm",
+    "8": "speed_3000rpm_40Nm",
+    "9": "speed_2000rpm_20Nm",
+    "10": "speed_1000rpm_20Nm"
+  },
+  "domain_sequence_defined_at_runtime": true,
+  "available_domain_labels": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "samples_per_class_per_domain": 200,
+  "num_classes": 24,
+  "num_domains": 11,
+  "total_samples": 52800,
+  "storage_order": "domain -> class -> acquisition time",
+  "selection": "uniform",
+  "target_stream_order": "interleaved",
+  "recordings": [
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/health_torque_circulation_20Nm_1000rpm_250702154813d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_H_torque_circulation_20Nm_1000rpm_250707135802d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_L_torque_circulation_20Nm_1000rpm_250707153516d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_H_torque_circulation_20Nm_1000rpm_250704084736d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_L_torque_circulation_20Nm_1000rpm_250707112415d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_torque_circulation_20Nm_1000rpm_250707103949d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_L_torque_circulation_20Nm_1000rpm_250708093600d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_and_inner_H_torque_circulation_20Nm_1000rpm_250702143147d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bend_torque_circulation_20Nm_1000rpm_250702191500d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_torque_circulation_20Nm_1000rpm_250703083538d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_inner_H_torque_circulation_20Nm_1000rpm_250705114401d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_outer_H_torque_circulation_20Nm_1000rpm_250705203013d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_torque_circulation_20Nm_1000rpm_250702171601d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_inner_H_torque_circulation_20Nm_1000rpm_250705095902d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_outer_H_torque_circulation_20Nm_1000rpm_250703192113d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_torque_circulation_20Nm_1000rpm_250703163850d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_L_torque_circulation_20Nm_1000rpm_250703154032d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_inner_H_torque_circulation_20Nm_1000rpm_250704101105d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_outer_H_torque_circulation_20Nm_1000rpm_250705085702d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/voltage_unbalance_L_torque_circulation_20Nm_1000rpm_250703134035d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_torque_circulation_20Nm_1000rpm_250703105212d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_L_torque_circulation_20Nm_1000rpm_250703100823d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_inner_H_torque_circulation_20Nm_1000rpm_250705185836d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_outer_H_torque_circulation_20Nm_1000rpm_250705105952d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/health_torque_circulation_20Nm_2000rpm_250702155521d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_H_torque_circulation_20Nm_2000rpm_250707140027d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_L_torque_circulation_20Nm_2000rpm_250707153733d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_H_torque_circulation_20Nm_2000rpm_250704084956d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_L_torque_circulation_20Nm_2000rpm_250707112622d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_torque_circulation_20Nm_2000rpm_250707103802d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_L_torque_circulation_20Nm_2000rpm_250708093806d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_and_inner_H_torque_circulation_20Nm_2000rpm_250702143340d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bend_torque_circulation_20Nm_2000rpm_250702191813d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_torque_circulation_20Nm_2000rpm_250703083743d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_inner_H_torque_circulation_20Nm_2000rpm_250705114622d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_outer_H_torque_circulation_20Nm_2000rpm_250705203208d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_torque_circulation_20Nm_2000rpm_250702171840d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_inner_H_torque_circulation_20Nm_2000rpm_250705100115d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_outer_H_torque_circulation_20Nm_2000rpm_250703192336d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_torque_circulation_20Nm_2000rpm_250703164146d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_L_torque_circulation_20Nm_2000rpm_250703154300d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_inner_H_torque_circulation_20Nm_2000rpm_250704101357d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_outer_H_torque_circulation_20Nm_2000rpm_250705085905d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/voltage_unbalance_L_torque_circulation_20Nm_2000rpm_250703134356d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_torque_circulation_20Nm_2000rpm_250703105522d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_L_torque_circulation_20Nm_2000rpm_250703101713d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_inner_H_torque_circulation_20Nm_2000rpm_250705190045d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_outer_H_torque_circulation_20Nm_2000rpm_250705110203d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/health_torque_circulation_20Nm_3000rpm_250702155743d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_H_torque_circulation_20Nm_3000rpm_250707140229d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_L_torque_circulation_20Nm_3000rpm_250707153938d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_H_torque_circulation_20Nm_3000rpm_250704085209d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_L_torque_circulation_20Nm_3000rpm_250707112823d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_torque_circulation_20Nm_3000rpm_250821175544.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_L_torque_circulation_20Nm_3000rpm_250708094011d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_and_inner_H_torque_circulation_20Nm_3000rpm_250702143700d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bend_torque_circulation_20Nm_3000rpm_250702192548d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_torque_circulation_20Nm_3000rpm_250703084001d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_inner_H_torque_circulation_20Nm_3000rpm_250705114846d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_outer_H_torque_circulation_20Nm_3000rpm_250705203410d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_torque_circulation_20Nm_3000rpm_250702172126d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_inner_H_torque_circulation_20Nm_3000rpm_250705100328d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_outer_H_torque_circulation_20Nm_3000rpm_250703192600d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_torque_circulation_20Nm_3000rpm_250703164427d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_L_torque_circulation_20Nm_3000rpm_250703154615d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_inner_H_torque_circulation_20Nm_3000rpm_250704101604d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_outer_H_torque_circulation_20Nm_3000rpm_250705090120d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/voltage_unbalance_L_torque_circulation_20Nm_3000rpm_250703134630d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_torque_circulation_20Nm_3000rpm_250703105805d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_L_torque_circulation_20Nm_3000rpm_250703102025d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_inner_H_torque_circulation_20Nm_3000rpm_250705190252d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_outer_H_torque_circulation_20Nm_3000rpm_250705110537d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/health_torque_circulation_40Nm_3000rpm_250702160849d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_H_torque_circulation_40Nm_3000rpm_250707143025d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_L_torque_circulation_40Nm_3000rpm_250707154630d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_H_torque_circulation_40Nm_3000rpm_250704085907d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_L_torque_circulation_40Nm_3000rpm_250707113444d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_torque_circulation_40Nm_3000rpm_250707104611d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_L_torque_circulation_40Nm_3000rpm_250708094556d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_and_inner_H_torque_circulation_40Nm_3000rpm_250702144702d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bend_torque_circulation_40Nm_3000rpm_250821094657.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_torque_circulation_40Nm_3000rpm_250703084659d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_inner_H_torque_circulation_40Nm_3000rpm_250705115517d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_outer_H_torque_circulation_40Nm_3000rpm_250705204012d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_torque_circulation_40Nm_3000rpm_250702172855d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_inner_H_torque_circulation_40Nm_3000rpm_250705101113d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_outer_H_torque_circulation_40Nm_3000rpm_250703193320d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_torque_circulation_40Nm_3000rpm_250703165153d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_L_torque_circulation_40Nm_3000rpm_250703155408d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_inner_H_torque_circulation_40Nm_3000rpm_250704102319d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_outer_H_torque_circulation_40Nm_3000rpm_250705091722d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/voltage_unbalance_L_torque_circulation_40Nm_3000rpm_250703135733d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_torque_circulation_40Nm_3000rpm_250703110555d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_L_torque_circulation_40Nm_3000rpm_250703102900d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_inner_H_torque_circulation_40Nm_3000rpm_250705190921d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_outer_H_torque_circulation_40Nm_3000rpm_250705111351d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/health_torque_circulation_40Nm_2000rpm_250702161114d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_H_torque_circulation_40Nm_2000rpm_250707142821d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_L_torque_circulation_40Nm_2000rpm_250707154410d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_H_torque_circulation_40Nm_2000rpm_250704085637d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_L_torque_circulation_40Nm_2000rpm_250707113243d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_torque_circulation_40Nm_2000rpm_250707104408d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_L_torque_circulation_40Nm_2000rpm_250708094403d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_and_inner_H_torque_circulation_40Nm_2000rpm_250702144421d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bend_torque_circulation_40Nm_2000rpm_250702193812d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_torque_circulation_40Nm_2000rpm_250703084446d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_inner_H_torque_circulation_40Nm_2000rpm_250705115303d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_outer_H_torque_circulation_40Nm_2000rpm_250705203815d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_torque_circulation_40Nm_2000rpm_250702172630d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_inner_H_torque_circulation_40Nm_2000rpm_250705100747d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_outer_H_torque_circulation_40Nm_2000rpm_250703193011d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_torque_circulation_40Nm_2000rpm_250703164920d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_L_torque_circulation_40Nm_2000rpm_250703155156d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_inner_H_torque_circulation_40Nm_2000rpm_250704102041d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_outer_H_torque_circulation_40Nm_2000rpm_250705091511d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/voltage_unbalance_L_torque_circulation_40Nm_2000rpm_250703135219d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_torque_circulation_40Nm_2000rpm_250703110249d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_L_torque_circulation_40Nm_2000rpm_250703102544d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_inner_H_torque_circulation_40Nm_2000rpm_250705190713d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_outer_H_torque_circulation_40Nm_2000rpm_250705111001d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/health_torque_circulation_40Nm_1000rpm_250702161315d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_H_torque_circulation_40Nm_1000rpm_250707140440d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_ball_L_torque_circulation_40Nm_1000rpm_250707154144d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_H_torque_circulation_40Nm_1000rpm_250704085422d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_inner_L_torque_circulation_40Nm_1000rpm_250707113035d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_torque_circulation_40Nm_1000rpm_250707104154d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_L_torque_circulation_40Nm_1000rpm_250708094205d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bearing_outer_H_and_inner_H_torque_circulation_40Nm_1000rpm_250702144057d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/bend_torque_circulation_40Nm_1000rpm_250702194020d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_torque_circulation_40Nm_1000rpm_250703084212d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_inner_H_torque_circulation_40Nm_1000rpm_250705115053d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/broken_bar_and_bearing_outer_H_torque_circulation_40Nm_1000rpm_250705203618d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_torque_circulation_40Nm_1000rpm_250702172352d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_inner_H_torque_circulation_40Nm_1000rpm_250705100532d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/dynamic_eccentricity_and_bearing_outer_H_torque_circulation_40Nm_1000rpm_250703192816d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_torque_circulation_40Nm_1000rpm_250703164651d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_L_torque_circulation_40Nm_1000rpm_250703154942d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_inner_H_torque_circulation_40Nm_1000rpm_250704101831d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/static_eccentricity_H_and_bearing_outer_H_torque_circulation_40Nm_1000rpm_250705091221d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/voltage_unbalance_L_torque_circulation_40Nm_1000rpm_250703134903d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_torque_circulation_40Nm_1000rpm_250703110024d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_L_torque_circulation_40Nm_1000rpm_250703102319d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_inner_H_torque_circulation_40Nm_1000rpm_250705190503d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_torque_circulation/winding_H_and_bearing_outer_H_torque_circulation_40Nm_1000rpm_250705110745d.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/health_speed_circulation_40Nm_1000rpm_250702161900.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_H_speed_circulation_40Nm_1000rpm_250707143453.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_L_speed_circulation_40Nm_1000rpm_250707155133.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_H_speed_circulation_40Nm_1000rpm_250704090347.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_L_speed_circulation_40Nm_1000rpm_250707114105.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_speed_circulation_40Nm_1000rpm_250707105055.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_L_speed_circulation_40Nm_1000rpm_250708094556.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_and_inner_H_speed_circulation_40Nm_1000rpm_250702150021.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bend_speed_circulation_40Nm_1000rpm_250702194456.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_speed_circulation_40Nm_1000rpm_250703085153.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_inner_H_speed_circulation_40Nm_1000rpm_250705120227.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_outer_H_speed_circulation_40Nm_1000rpm_250705204420.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_speed_circulation_40Nm_1000rpm_250702173358.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_inner_H_speed_circulation_40Nm_1000rpm_250705101641.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_outer_H_speed_circulation_40Nm_1000rpm_250703193756.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_speed_circulation_40Nm_1000rpm_250703165658.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_L_speed_circulation_40Nm_1000rpm_250703161740.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_inner_H_speed_circulation_40Nm_1000rpm_250704103408.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_outer_H_speed_circulation_40Nm_1000rpm_250705092828.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/voltage_unbalance_L_speed_circulation_40Nm_1000rpm_250703140319.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_speed_circulation_40Nm_1000rpm_250703111236.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_L_speed_circulation_40Nm_1000rpm_250703103417.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_inner_H_speed_circulation_40Nm_1000rpm_250705191339.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_outer_H_speed_circulation_40Nm_1000rpm_250705111849.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/health_speed_circulation_40Nm_2000rpm_250702162327.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_H_speed_circulation_40Nm_2000rpm_250707143905.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_L_speed_circulation_40Nm_2000rpm_250707160240.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_H_speed_circulation_40Nm_2000rpm_250704090841.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_L_speed_circulation_40Nm_2000rpm_250707114548.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_speed_circulation_40Nm_2000rpm_250707105500.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_L_speed_circulation_40Nm_2000rpm_250708100011.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_and_inner_H_speed_circulation_40Nm_2000rpm_250702150458.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bend_speed_circulation_40Nm_2000rpm_250702194943.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_speed_circulation_40Nm_2000rpm_250703085559.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_inner_H_speed_circulation_40Nm_2000rpm_250705120733.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_outer_H_speed_circulation_40Nm_2000rpm_250705204816.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_speed_circulation_40Nm_2000rpm_250702173909.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_inner_H_speed_circulation_40Nm_2000rpm_250705102224.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_outer_H_speed_circulation_40Nm_2000rpm_250703194457.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_speed_circulation_40Nm_2000rpm_250703170111.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_L_speed_circulation_40Nm_2000rpm_250703162159.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_inner_H_speed_circulation_40Nm_2000rpm_250704103907.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_outer_H_speed_circulation_40Nm_2000rpm_250705093223.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/voltage_unbalance_L_speed_circulation_40Nm_2000rpm_250703140729.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_speed_circulation_40Nm_2000rpm_250703111640.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_L_speed_circulation_40Nm_2000rpm_250703104012.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_inner_H_speed_circulation_40Nm_2000rpm_250705191746.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_outer_H_speed_circulation_40Nm_2000rpm_250705112335.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/health_speed_circulation_40Nm_3000rpm_250702162804.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_H_speed_circulation_40Nm_3000rpm_250707144708.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_L_speed_circulation_40Nm_3000rpm_250707160826.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_H_speed_circulation_40Nm_3000rpm_250704091435.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_L_speed_circulation_40Nm_3000rpm_250707114941.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_speed_circulation_40Nm_3000rpm_250707105959.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_L_speed_circulation_40Nm_3000rpm_250708100602.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_and_inner_H_speed_circulation_40Nm_3000rpm_250702151550.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bend_speed_circulation_40Nm_3000rpm_250702195454.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_speed_circulation_40Nm_3000rpm_250703090336.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_inner_H_speed_circulation_40Nm_3000rpm_250705121139.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_outer_H_speed_circulation_40Nm_3000rpm_250705205211.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_speed_circulation_40Nm_3000rpm_250702175605.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_inner_H_speed_circulation_40Nm_3000rpm_250705102903.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_outer_H_speed_circulation_40Nm_3000rpm_250703194902.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_speed_circulation_40Nm_3000rpm_250703170545.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_L_speed_circulation_40Nm_3000rpm_250703162604.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_inner_H_speed_circulation_40Nm_3000rpm_250704104312.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_outer_H_speed_circulation_40Nm_3000rpm_250705093709.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/voltage_unbalance_L_speed_circulation_40Nm_3000rpm_250703141156.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_speed_circulation_40Nm_3000rpm_250703112501.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_L_speed_circulation_40Nm_3000rpm_250703104501.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_inner_H_speed_circulation_40Nm_3000rpm_250705192507.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_outer_H_speed_circulation_40Nm_3000rpm_250705112733.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/health_speed_circulation_20Nm_2000rpm_250702162116.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_H_speed_circulation_20Nm_2000rpm_250707143705.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_L_speed_circulation_20Nm_2000rpm_250707160043.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_H_speed_circulation_20Nm_2000rpm_250704090550.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_L_speed_circulation_20Nm_2000rpm_250707114350.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_speed_circulation_20Nm_2000rpm_250707105253.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_L_speed_circulation_20Nm_2000rpm_250708095712.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_and_inner_H_speed_circulation_20Nm_2000rpm_250702150240.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bend_speed_circulation_20Nm_2000rpm_250702194729.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_speed_circulation_20Nm_2000rpm_250703085359.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_inner_H_speed_circulation_20Nm_2000rpm_250705120534.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_outer_H_speed_circulation_20Nm_2000rpm_250705204622.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_speed_circulation_20Nm_2000rpm_250702173704.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_inner_H_speed_circulation_20Nm_2000rpm_250705101903.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_outer_H_speed_circulation_20Nm_2000rpm_250703194029.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_speed_circulation_20Nm_2000rpm_250703165901.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_L_speed_circulation_20Nm_2000rpm_250703161956.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_inner_H_speed_circulation_20Nm_2000rpm_250704103641.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_outer_H_speed_circulation_20Nm_2000rpm_250705093025.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/voltage_unbalance_L_speed_circulation_20Nm_2000rpm_250703140521.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_speed_circulation_20Nm_2000rpm_250703111439.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_L_speed_circulation_20Nm_2000rpm_250703103805.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_inner_H_speed_circulation_20Nm_2000rpm_250705191540.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_outer_H_speed_circulation_20Nm_2000rpm_250705112048.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/health_speed_circulation_20Nm_1000rpm_250702161631.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_H_speed_circulation_20Nm_1000rpm_250707143259.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_ball_L_speed_circulation_20Nm_1000rpm_250707154858.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_H_speed_circulation_20Nm_1000rpm_250704090137.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_inner_L_speed_circulation_20Nm_1000rpm_250707113842.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_speed_circulation_20Nm_1000rpm_250707104821.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_L_speed_circulation_20Nm_1000rpm_250708094556.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bearing_outer_H_and_inner_H_speed_circulation_20Nm_1000rpm.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/bend_speed_circulation_20Nm_1000rpm_250702194230.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_speed_circulation_20Nm_1000rpm_250703084952.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_inner_H_speed_circulation_20Nm_1000rpm_250705115725.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/broken_bar_and_bearing_outer_H_speed_circulation_20Nm_1000rpm_250705204219.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_speed_circulation_20Nm_1000rpm_250702173141.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_inner_H_speed_circulation_20Nm_1000rpm_250705101415.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/dynamic_eccentricity_and_bearing_outer_H_speed_circulation_20Nm_1000rpm_250703193541.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_speed_circulation_20Nm_1000rpm_250703165421.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_L_speed_circulation_20Nm_1000rpm_250703161200.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_inner_H_speed_circulation_20Nm_1000rpm_250704103109.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/static_eccentricity_H_and_bearing_outer_H_speed_circulation_20Nm_1000rpm_250705091946.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/voltage_unbalance_L_speed_circulation_20Nm_1000rpm_250703140104.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_speed_circulation_20Nm_1000rpm_250703111010.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_L_speed_circulation_20Nm_1000rpm_250703103154.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_inner_H_speed_circulation_20Nm_1000rpm_250705191133.csv",
+    "MCC5-THU_Motor/MCC5-THU Motor_speed_circulation/winding_H_and_bearing_outer_H_speed_circulation_20Nm_1000rpm_250705111614.csv"
+  ],
+  "combination_counts": [
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "steady_1000rpm_20Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 200,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_20Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_20Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_3000rpm_40Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_2000rpm_40Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "torque_1000rpm_40Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_40Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_40Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_3000rpm_40Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_2000rpm_20Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "health",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bearing_ball_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bearing_ball_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bearing_inner_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bearing_outer_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bearing_outer_H_and_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "bend",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "broken_bar",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "broken_bar_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "broken_bar_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "dynamic_eccentricity",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "dynamic_eccentricity_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "static_eccentricity_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "static_eccentricity_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "static_eccentricity_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "voltage_unbalance_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "winding_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "winding_L",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "winding_H_and_bearing_inner_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    },
+    {
+      "domain": "speed_1000rpm_20Nm",
+      "class": "winding_H_and_bearing_outer_H",
+      "available_non_overlapping_windows": 900,
+      "selected_windows": 200
+    }
+  ],
+  "fmctta_spec": {
+    "name": "MCC5_Motor_0p1s_custom",
+    "filename": "MCC5_Motor_0p1s_custom.mat",
+    "num_classes": 24,
+    "num_domains": 11,
+    "samples_per_class": 200,
+    "default_sequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "description": "Custom native-rate 0.1-second MCC5-Motor CTTA dataset",
+    "num_channels": 3,
+    "default_stream_order": "interleaved",
+    "domain_names": [
+      "steady_1000rpm_20Nm",
+      "torque_2000rpm_20Nm",
+      "torque_3000rpm_20Nm",
+      "torque_3000rpm_40Nm",
+      "torque_2000rpm_40Nm",
+      "torque_1000rpm_40Nm",
+      "speed_1000rpm_40Nm",
+      "speed_2000rpm_40Nm",
+      "speed_3000rpm_40Nm",
+      "speed_2000rpm_20Nm",
+      "speed_1000rpm_20Nm"
+    ]
+  }
+}

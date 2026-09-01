@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/unifault/eata.yaml
+base:
+  - base.yaml
+  - ../../methods/eata.yaml
+
+runtime:
+  run_name: wt-unifault-small-eata
+

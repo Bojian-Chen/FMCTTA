@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/SDUST_Bearing/tf_profm/rotta.yaml
+base:
+  - base.yaml
+  - ../../methods/rotta.yaml
+
+runtime:
+  run_name: sdust-bearing-tf-profm-rotta
+

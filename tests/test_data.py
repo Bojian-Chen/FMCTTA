@@ -61,6 +61,30 @@ def test_target_cap_does_not_change_source_split(tmp_path: Path) -> None:
     assert len(data.target_dataset(1)) == 3
 
 
+def test_multiple_source_domains_are_mixed_for_training(tmp_path: Path) -> None:
+    spec = _make_dataset(tmp_path)
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domains=(0, 1),
+        target_domains=(2,),
+        normalization="none",
+        source_validation_ratio=0.2,
+        seed=7,
+    )
+
+    assert len(data.source.train) == 16
+    assert len(data.source.validation) == 4
+    source_ids = torch.cat(
+        [data.source.train.sample_ids, data.source.validation.sample_ids]
+    )
+    source_domain_ids = torch.div(
+        source_ids, spec.samples_per_domain, rounding_mode="floor"
+    )
+    assert set(source_domain_ids.tolist()) == {0, 1}
+    assert data.sample_selection["source_domains"] == [0, 1]
+
+
 def test_per_class_sampling_partitions_repeated_target_domains(tmp_path: Path) -> None:
     spec = _make_dataset(tmp_path)
     data = FaultDataModule(
@@ -95,3 +119,22 @@ def test_repeated_target_request_cannot_reuse_samples(tmp_path: Path) -> None:
             target_domains=(1, 1),
             target_samples_per_class=((3, 3), (3, 3)),
         )
+
+
+def test_repeated_target_request_can_reuse_samples_when_enabled(tmp_path: Path) -> None:
+    spec = _make_dataset(tmp_path)
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domain=0,
+        target_domains=(1, 1),
+        target_samples_per_class=((3, 3), (3, 3)),
+        allow_repeated_target_samples=True,
+        stream_order="class_block",
+    )
+
+    targets = [data.target_dataset(1, position) for position in range(2)]
+    all_ids = torch.cat([target.sample_ids for target in targets])
+    assert [len(target) for target in targets] == [6, 6]
+    assert len(torch.unique(all_ids)) < len(all_ids)
+    assert data.sample_selection["allow_repeated_target_samples"] is True

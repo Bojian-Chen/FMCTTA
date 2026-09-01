@@ -17,6 +17,8 @@ class DatasetSpec:
     num_channels: int = 1
     default_stream_order: str = "shuffled"
     domain_names: Tuple[str, ...] = ()
+    domain_groups: Tuple[str, ...] = ()
+    samples_per_class_by_domain: Tuple[int, ...] = ()
 
     @property
     def samples_per_domain(self) -> int:
@@ -24,7 +26,20 @@ class DatasetSpec:
 
     @property
     def expected_samples(self) -> int:
-        return self.num_domains * self.samples_per_domain
+        return sum(
+            self.samples_for_domain(domain) for domain in range(self.num_domains)
+        )
+
+    def samples_per_class_for_domain(self, domain: int) -> int:
+        if self.samples_per_class_by_domain:
+            return self.samples_per_class_by_domain[domain]
+        return self.samples_per_class
+
+    def samples_for_domain(self, domain: int) -> int:
+        return self.num_classes * self.samples_per_class_for_domain(domain)
+
+    def domain_offset(self, domain: int) -> int:
+        return sum(self.samples_for_domain(item) for item in range(domain))
 
     def path(self, data_root: Path) -> Path:
         return data_root / self.filename
@@ -36,32 +51,21 @@ class DatasetSpec:
 
 
 DATASETS: Dict[str, DatasetSpec] = {
-    "SK": DatasetSpec(
-        "SK",
-        "SK_all_10classes.mat",
-        10,
-        24,
-        100,
-        (6, 1, 8, 15, 22, 17),
-        "Southeast University bearing dataset",
-    ),
-    "SK_new": DatasetSpec(
-        "SK_new",
-        "SK_new_all_10classes.mat",
-        10,
-        24,
-        100,
-        (6, 1, 8, 15, 22, 17),
-        "Alternative preprocessing of the SK bearing dataset",
-    ),
-    "HIT": DatasetSpec(
-        "HIT",
-        "HIT_23doamins_3classes.mat",
-        3,
-        23,
-        100,
-        (0, 4, 8, 12, 16, 20, 22),
-        "HIT bearing dataset",
+    "PU": DatasetSpec(
+        "PU",
+        "PU_0p1s_custom.mat",
+        14,
+        4,
+        200,
+        (0, 1, 2, 3),
+        "Custom native-rate 0.1-second PU CTTA dataset",
+        default_stream_order="interleaved",
+        domain_names=(
+            "N15_M07_F10",
+            "N09_M07_F10",
+            "N15_M01_F10",
+            "N15_M07_F04",
+        ),
     ),
     "HUST": DatasetSpec(
         "HUST",
@@ -136,60 +140,17 @@ DATASETS: Dict[str, DatasetSpec] = {
             "speed_circulation_20Nm_1000rpm",
         ),
     ),
-    "iFlytek": DatasetSpec(
-        "iFlytek",
-        "iFlytek_all_5classes.mat",
-        5,
-        16,
-        100,
-        (2, 3, 4, 5, 7),
-        "iFlytek acoustic fault dataset",
-    ),
     "WT": DatasetSpec(
         "WT",
-        "WT_all_5classes.mat",
+        "WT_0p1s_custom.mat",
         5,
         8,
-        100,
-        (0, 1, 2, 3, 4),
-        "Wind-turbine fault dataset",
-    ),
-    "PU_Real": DatasetSpec(
-        "PU_Real",
-        "PU_Real_4doamins_5classes.mat",
-        5,
-        4,
-        100,
-        (3, 2, 0, 1),
-        "Paderborn real bearing faults",
-    ),
-    "PU_Real_200": DatasetSpec(
-        "PU_Real_200",
-        "PU_Real_4doamins_5classes_200.mat",
-        5,
-        4,
         200,
-        (3, 2, 0, 1),
-        "Paderborn real bearing faults, 200 samples per class",
-    ),
-    "PU_Art": DatasetSpec(
-        "PU_Art",
-        "PU_Art_4doamins_8classes.mat",
-        8,
-        4,
-        100,
-        (2, 0, 1, 3),
-        "Paderborn artificial bearing faults",
-    ),
-    "Robot": DatasetSpec(
-        "Robot",
-        "Robot_4classes_4domains.mat",
-        4,
-        4,
-        20,
-        (0, 1, 2, 3),
-        "Robot fault dataset (labels in the MAT file require reconstruction)",
-        repair_labels=True,
+        tuple(range(8)),
+        "Custom native-rate 0.1-second WT CTTA dataset",
+        num_channels=2,
+        default_stream_order="interleaved",
+        domain_names=("20", "25", "30", "35", "40", "45", "50", "55"),
     ),
 }
 
@@ -216,6 +177,18 @@ def resolve_sequence(spec: DatasetSpec, value: str = "") -> Tuple[int, ...]:
             "CTTA requires one source domain and at least one target domain"
         )
     return sequence
+
+
+def resolve_target_domains(spec: DatasetSpec, value: str) -> Tuple[int, ...]:
+    """Resolve an explicit online target stream for multi-source training."""
+
+    domains = parse_domains(value)
+    invalid = [domain for domain in domains if not 0 <= domain < spec.num_domains]
+    if invalid:
+        raise ValueError(
+            f"{spec.name} has domains 0..{spec.num_domains - 1}; invalid: {invalid}"
+        )
+    return domains
 
 
 def _parse_positive_counts(value: str, context: str) -> Tuple[int, ...]:
@@ -285,9 +258,11 @@ def dataset_spec_from_manifest(path: Path) -> DatasetSpec:
 
     path = Path(path)
     content = json.loads(path.read_text(encoding="utf-8"))
-    values = content.get("fmctta_spec")
+    values = content.get("fmctta_spec", content.get("octta_spec"))
     if not isinstance(values, dict):
-        raise ValueError(f"{path} does not contain an 'fmctta_spec' object")
+        raise ValueError(
+            f"{path} does not contain an 'fmctta_spec' or 'octta_spec' object"
+        )
     required = {
         "name",
         "filename",
@@ -314,11 +289,29 @@ def dataset_spec_from_manifest(path: Path) -> DatasetSpec:
         num_channels=int(values["num_channels"]),
         default_stream_order=str(values["default_stream_order"]),
         domain_names=tuple(str(item) for item in values["domain_names"]),
+        domain_groups=tuple(str(item) for item in values.get("domain_groups", ())),
+        samples_per_class_by_domain=tuple(
+            int(item) for item in values.get("samples_per_class_by_domain", ())
+        ),
     )
     if len(spec.domain_names) != spec.num_domains:
         raise ValueError(
             f"{path}: num_domains={spec.num_domains}, but domain_names has "
             f"{len(spec.domain_names)} entries"
         )
+    if spec.domain_groups and len(spec.domain_groups) != spec.num_domains:
+        raise ValueError(
+            f"{path}: num_domains={spec.num_domains}, but domain_groups has "
+            f"{len(spec.domain_groups)} entries"
+        )
+    if (
+        spec.samples_per_class_by_domain
+        and len(spec.samples_per_class_by_domain) != spec.num_domains
+    ):
+        raise ValueError(
+            f"{path}: samples_per_class_by_domain must contain one count per domain"
+        )
+    if any(count < 1 for count in spec.samples_per_class_by_domain):
+        raise ValueError(f"{path}: samples_per_class_by_domain must be positive")
     resolve_sequence(spec)
     return spec

@@ -1,12 +1,8 @@
-"""Raw-data readers for the four CTTA datasets.
-
-The readers follow the channel and condition choices in
-``PHMFD-data-prepocessing``.  They deliberately expose only native-rate,
-non-overlapping 0.1-second windows; there is no resampling path in this module.
-"""
+"""Raw-data readers for configurable, native-rate CTTA signal windows."""
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
@@ -14,7 +10,7 @@ import numpy as np
 from scipy.io import loadmat
 
 
-WINDOW_SECONDS = 0.1
+DEFAULT_WINDOW_SIZE_POINTS = 1024
 
 
 @dataclass(frozen=True)
@@ -22,6 +18,8 @@ class DomainDefinition:
     name: str
     raw_key: str
     segments_sec: Tuple[Tuple[float, float], ...] = ()
+    role: str = "runtime"
+    recording_group: str = ""
 
 
 @dataclass
@@ -54,8 +52,13 @@ def _window_signal(
     signal: np.ndarray,
     sampling_frequency: int,
     recording_name: str,
+    window_size_points: int = DEFAULT_WINDOW_SIZE_POINTS,
     segments_sec: Sequence[Tuple[float, float]] = (),
 ) -> WindowBatch:
+    """Split a recording into contiguous, non-overlapping point windows."""
+
+    if window_size_points < 1:
+        raise ValueError("window_size_points must be positive")
     signal = np.asarray(signal, dtype=np.float32)
     if signal.ndim == 1:
         signal = signal.reshape(1, -1)
@@ -64,7 +67,6 @@ def _window_signal(
     if not np.isfinite(signal).all():
         raise ValueError(f"Non-finite values found in {recording_name}")
 
-    window_size = int(round(sampling_frequency * WINDOW_SECONDS))
     intervals = segments_sec or ((0.0, signal.shape[1] / sampling_frequency),)
     values: List[np.ndarray] = []
     starts: List[np.ndarray] = []
@@ -72,20 +74,20 @@ def _window_signal(
     for start_sec, stop_sec in intervals:
         start = max(0, int(round(start_sec * sampling_frequency)))
         stop = min(signal.shape[1], int(round(stop_sec * sampling_frequency)))
-        count = (stop - start) // window_size
+        count = (stop - start) // window_size_points
         if count <= 0:
             continue
-        trimmed = signal[:, start : start + count * window_size]
+        trimmed = signal[:, start:start + count * window_size_points]
         windows = trimmed.reshape(
-            signal.shape[0], count, window_size
+            signal.shape[0], count, window_size_points
         ).transpose(1, 0, 2)
         values.append(np.ascontiguousarray(windows, dtype=np.float32))
-        point_starts = start + np.arange(count, dtype=np.int64) * window_size
+        point_starts = start + np.arange(count, dtype=np.int64) * window_size_points
         starts.append(point_starts.astype(np.float64) / sampling_frequency)
         names.extend([recording_name] * count)
     if not values:
         return WindowBatch(
-            np.empty((0, signal.shape[0], window_size), dtype=np.float32),
+            np.empty((0, signal.shape[0], window_size_points), dtype=np.float32),
             np.empty(0, dtype=np.float64),
             [],
         )
@@ -121,10 +123,8 @@ class DatasetAdapter:
     channel_names: Tuple[str, ...] = ()
     class_names: Tuple[str, ...] = ()
     domains: Tuple[DomainDefinition, ...] = ()
-
-    @property
-    def window_size(self) -> int:
-        return int(round(self.sampling_frequency * WINDOW_SECONDS))
+    condition_profile: Tuple[Dict[str, object], ...] = ()
+    recommended_source_domains: Tuple[str, ...] = ()
 
     @property
     def domain_names(self) -> Tuple[str, ...]:
@@ -142,7 +142,11 @@ class DatasetAdapter:
         raise NotImplementedError
 
     def load_windows(
-        self, raw_root: Path, class_name: str, domain_name: str
+        self,
+        raw_root: Path,
+        class_name: str,
+        domain_name: str,
+        window_size_points: int,
     ) -> WindowBatch:
         raise NotImplementedError
 
@@ -233,7 +237,11 @@ class PUAdapter(DatasetAdapter):
         return signal
 
     def load_windows(
-        self, raw_root: Path, class_name: str, domain_name: str
+        self,
+        raw_root: Path,
+        class_name: str,
+        domain_name: str,
+        window_size_points: int,
     ) -> WindowBatch:
         max_points = int(round(self.sampling_frequency * self.raw_duration_seconds))
         batches = []
@@ -244,9 +252,10 @@ class PUAdapter(DatasetAdapter):
                     signal,
                     self.sampling_frequency,
                     self.relative_recording_name(raw_root, path),
+                    window_size_points,
                 )
             )
-        return _concat_batches(batches, len(self.channel_names), self.window_size)
+        return _concat_batches(batches, len(self.channel_names), window_size_points)
 
 
 WT_CLASSES = ("healthy", "broken", "missing_tooth", "root_crack", "wear")
@@ -279,21 +288,199 @@ class WTAdapter(DatasetAdapter):
         return paths
 
     def load_windows(
-        self, raw_root: Path, class_name: str, domain_name: str
+        self,
+        raw_root: Path,
+        class_name: str,
+        domain_name: str,
+        window_size_points: int,
     ) -> WindowBatch:
         paths = self.recording_paths(raw_root, class_name, domain_name)
         if not paths:
-            return _concat_batches([], len(self.channel_names), self.window_size)
+            return _concat_batches([], len(self.channel_names), window_size_points)
         path = paths[0]
         data = np.asarray(loadmat(path)["Data"], dtype=np.float32)
         if data.ndim != 2 or data.shape[1] < 2:
             raise ValueError(f"Expected WT Data with at least 2 channels in {path}")
-        signal = data[:, :2].T
         return _window_signal(
-            signal,
+            data[:, :2].T,
             self.sampling_frequency,
             self.relative_recording_name(raw_root, path),
+            window_size_points,
             (self.slice_seconds,),
+        )
+
+
+SDUST_CHANNELS = tuple(f"signal_{index}" for index in range(1, 7))
+SDUST_BEARING_CHANNELS = (
+    "upper_z",
+    "upper_y",
+    "upper_x",
+    "lower_z",
+    "lower_y",
+    "lower_x",
+)
+SDUST_GEAR_CHANNELS = (
+    "left_z",
+    "left_y",
+    "left_x",
+    "right_z",
+    "right_y",
+    "right_x",
+)
+SDUST_BEARING_CLASSES = (
+    "NC",
+    "IF0.2",
+    "IF0.4",
+    "IF0.6",
+    "OF0.2",
+    "OF0.4",
+    "OF0.6",
+    "RF0.2",
+    "RF0.4",
+    "RF0.6",
+)
+SDUST_BEARING_DOMAINS = tuple(
+    DomainDefinition(f"{speed}rpm_{load}N", f"{speed}|{load}")
+    for speed in (1000, 1500, 1800, 2000, 2500, 3000)
+    for load in (0, 20, 40, 60)
+) + tuple(
+    DomainDefinition(
+        f"speed_{start}to{stop}rpm_{load}N",
+        f"{start}~{stop}|{load}",
+    )
+    for start, stop in ((800, 1500), (1000, 2000), (1500, 2500))
+    for load in (0, 20, 40, 60)
+)
+SDUST_GEAR_CLASSES = (
+    "NC",
+    "太阳断裂",
+    "太阳点蚀",
+    "太阳磨损",
+    "行星断裂",
+    "行星点蚀",
+    "行星磨损",
+)
+SDUST_GEAR_DOMAINS = tuple(
+    DomainDefinition(f"{speed}rpm_0.5A", f"{speed}|0.5A|1")
+    for speed in (1000, 1500, 1800, 2000, 2500)
+) + tuple(
+    DomainDefinition(
+        f"{speed}rpm_load_0to{load}",
+        f"{speed}|0-{load}|*",
+    )
+    for speed in (1000, 1500, 1800, 2000, 2500)
+    for load in ("0.2A", "0.35A", "0.5A")
+) + (
+    DomainDefinition("fluctuating_speed_and_load", "flu|flu|*"),
+)
+SDUST_GEAR_STEMS = {
+    "NC": "normal",
+    "太阳断裂": "sunfracture",
+    "太阳点蚀": "sunpitting",
+    "太阳磨损": "sunwear",
+    "行星断裂": "planetrayfracture",
+    "行星点蚀": "planetraypitting",
+    "行星磨损": "planetraywear",
+}
+
+
+def _read_sdust_signal(path: Path) -> np.ndarray:
+    content = loadmat(path, squeeze_me=True, struct_as_record=False)
+    try:
+        values = content["Signal"].y_values.values
+    except (AttributeError, KeyError) as exc:
+        raise KeyError(f"Cannot find Signal.y_values.values in {path}") from exc
+    data = np.asarray(values, dtype=np.float32)
+    if data.ndim != 2 or data.shape[1] != len(SDUST_CHANNELS):
+        raise ValueError(
+            f"Expected SDUST signal with 6 channels in {path}, got {data.shape}"
+        )
+    return data.T
+
+
+class SDUSTAdapter(DatasetAdapter):
+    sampling_frequency = 25_600
+    channel_names = SDUST_CHANNELS
+    subset_dir_name = ""
+
+    def _root(self, raw_root: Path) -> Path:
+        return _first_matching_root(
+            raw_root,
+            ("SUDST", "SDUST"),
+            f"{self.subset_dir_name}/NC",
+        )
+
+    def load_windows(
+        self,
+        raw_root: Path,
+        class_name: str,
+        domain_name: str,
+        window_size_points: int,
+    ) -> WindowBatch:
+        paths = self.recording_paths(raw_root, class_name, domain_name)
+        batches = [
+            _window_signal(
+                _read_sdust_signal(path),
+                self.sampling_frequency,
+                self.relative_recording_name(raw_root, path),
+                window_size_points,
+            )
+            for path in paths
+        ]
+        return _concat_batches(
+            batches,
+            len(self.channel_names),
+            window_size_points,
+        )
+
+
+class SDUSTBearingAdapter(SDUSTAdapter):
+    name = "SDUST-Bearing"
+    subset_dir_name = "轴承数据集"
+    channel_names = SDUST_BEARING_CHANNELS
+    class_names = SDUST_BEARING_CLASSES
+    domains = SDUST_BEARING_DOMAINS
+
+    def recording_paths(
+        self, raw_root: Path, class_name: str, domain_name: str
+    ) -> List[Path]:
+        speed, load = self.domain(domain_name).raw_key.split("|")
+        label_dir = self._root(raw_root) / self.subset_dir_name / class_name
+        if "~" not in speed:
+            return [label_dir / f"{class_name} {speed} {load}.mat"]
+        paths = []
+        for path in label_dir.glob("*.mat"):
+            parts = path.stem.split()
+            if len(parts) < 3:
+                continue
+            recorded_speed = parts[1].replace("-", "~")
+            if (
+                parts[0] == class_name
+                and recorded_speed == speed
+                and parts[2] == load
+            ):
+                paths.append(path)
+        return sorted(paths, key=_natural_key)
+
+
+class SDUSTGearAdapter(SDUSTAdapter):
+    name = "SDUST-Gear"
+    subset_dir_name = "齿轮数据集"
+    channel_names = SDUST_GEAR_CHANNELS
+    class_names = SDUST_GEAR_CLASSES
+    domains = SDUST_GEAR_DOMAINS
+
+    def recording_paths(
+        self, raw_root: Path, class_name: str, domain_name: str
+    ) -> List[Path]:
+        speed, load, repeat = self.domain(domain_name).raw_key.split("|")
+        stem = SDUST_GEAR_STEMS[class_name]
+        label_dir = self._root(raw_root) / self.subset_dir_name / class_name
+        if repeat != "*":
+            return [label_dir / f"{stem} {speed} {load} {repeat}.mat"]
+        return sorted(
+            label_dir.glob(f"{stem} {speed} {load} *.mat"),
+            key=_natural_key,
         )
 
 
@@ -333,11 +520,14 @@ class HUSTGearboxAdapter(DatasetAdapter):
         self, raw_root: Path, class_name: str, domain_name: str
     ) -> List[Path]:
         domain = self.domain(domain_name)
-        path = self._root(raw_root) / f"{class_name}_{domain.raw_key}.txt"
-        return [path]
+        return [self._root(raw_root) / f"{class_name}_{domain.raw_key}.txt"]
 
     def load_windows(
-        self, raw_root: Path, class_name: str, domain_name: str
+        self,
+        raw_root: Path,
+        class_name: str,
+        domain_name: str,
+        window_size_points: int,
     ) -> WindowBatch:
         path = self.recording_paths(raw_root, class_name, domain_name)[0]
         data = np.loadtxt(
@@ -353,6 +543,175 @@ class HUSTGearboxAdapter(DatasetAdapter):
             data[:, -3:].T,
             self.sampling_frequency,
             self.relative_recording_name(raw_root, path),
+            window_size_points,
+        )
+
+
+GEARBOX_CLASSES = (
+    "health",
+    "gear_pitting_H",
+    "gear_pitting_M",
+    "gear_pitting_L",
+    "gear_wear_H",
+    "gear_wear_M",
+    "gear_wear_L",
+    "miss_teeth",
+    "teeth_break_H",
+    "teeth_break_M",
+    "teeth_break_L",
+    "teeth_crack_H",
+    "teeth_crack_M",
+    "teeth_crack_L",
+    "teeth_break_and_bearing_inner_H",
+    "teeth_break_and_bearing_inner_M",
+    "teeth_break_and_bearing_inner_L",
+    "teeth_break_and_bearing_outer_H",
+    "teeth_break_and_bearing_outer_M",
+    "teeth_break_and_bearing_outer_L",
+)
+
+
+def _mcc5_domain_triplet(
+    profile_name: str,
+    raw_key: str,
+    steady_1_name: str,
+    steady_2_name: str,
+    steady_1_segments: Tuple[Tuple[float, float], ...],
+    steady_2_segments: Tuple[Tuple[float, float], ...],
+) -> Tuple[DomainDefinition, ...]:
+    """Expose both plateaus and the full stream of one raw circulation file."""
+
+    return (
+        DomainDefinition(
+            f"{profile_name}__steady_1_{steady_1_name}",
+            raw_key,
+            steady_1_segments,
+            "source_candidate",
+            raw_key,
+        ),
+        DomainDefinition(
+            f"{profile_name}__steady_2_{steady_2_name}",
+            raw_key,
+            steady_2_segments,
+            "source_candidate",
+            raw_key,
+        ),
+        DomainDefinition(
+            f"{profile_name}__stream",
+            raw_key,
+            (),
+            "target_stream",
+            raw_key,
+        ),
+    )
+
+
+GEARBOX_STEADY_1_SEGMENTS = ((10.0, 20.0), (40.0, 50.0))
+GEARBOX_STEADY_2_SEGMENTS = ((25.0, 35.0),)
+GEARBOX_PROFILES = (
+    ("torque_1000rpm_10to5Nm", "torque_circulation_1000rpm_10Nm", "10Nm", "5Nm"),
+    ("torque_2000rpm_10to5Nm", "torque_circulation_2000rpm_10Nm", "10Nm", "5Nm"),
+    ("torque_3000rpm_10to5Nm", "torque_circulation_3000rpm_10Nm", "10Nm", "5Nm"),
+    ("torque_3000rpm_20to15Nm", "torque_circulation_3000rpm_20Nm", "20Nm", "15Nm"),
+    ("torque_2000rpm_20to15Nm", "torque_circulation_2000rpm_20Nm", "20Nm", "15Nm"),
+    ("torque_1000rpm_20to15Nm", "torque_circulation_1000rpm_20Nm", "20Nm", "15Nm"),
+    ("speed_20Nm_1000to500rpm", "speed_circulation_20Nm-1000rpm", "1000rpm", "500rpm"),
+    ("speed_20Nm_2000to1500rpm", "speed_circulation_20Nm-2000rpm", "2000rpm", "1500rpm"),
+    ("speed_20Nm_3000to2500rpm", "speed_circulation_20Nm-3000rpm", "3000rpm", "2500rpm"),
+    ("speed_10Nm_3000to2500rpm", "speed_circulation_10Nm-3000rpm", "3000rpm", "2500rpm"),
+    ("speed_10Nm_2000to1500rpm", "speed_circulation_10Nm-2000rpm", "2000rpm", "1500rpm"),
+    ("speed_10Nm_1000to500rpm", "speed_circulation_10Nm-1000rpm", "1000rpm", "500rpm"),
+)
+GEARBOX_DOMAINS = tuple(
+    domain
+    for profile_name, raw_key, steady_1_name, steady_2_name in GEARBOX_PROFILES
+    for domain in _mcc5_domain_triplet(
+        profile_name,
+        raw_key,
+        steady_1_name,
+        steady_2_name,
+        GEARBOX_STEADY_1_SEGMENTS,
+        GEARBOX_STEADY_2_SEGMENTS,
+    )
+)
+GEARBOX_CONDITION_PROFILE = (
+    {"phase": "linear_zero_to_steady_1", "start_sec": 0.0, "stop_sec": 10.0},
+    {"phase": "steady_1", "start_sec": 10.0, "stop_sec": 20.0},
+    {
+        "phase": "linear_steady_1_to_steady_2",
+        "start_sec": 20.0,
+        "stop_sec": 25.0,
+    },
+    {"phase": "steady_2", "start_sec": 25.0, "stop_sec": 35.0},
+    {
+        "phase": "linear_steady_2_to_steady_1",
+        "start_sec": 35.0,
+        "stop_sec": 40.0,
+    },
+    {"phase": "steady_1", "start_sec": 40.0, "stop_sec": 50.0},
+    {"phase": "linear_steady_1_to_zero", "start_sec": 50.0, "stop_sec": 60.0},
+)
+
+
+class MCC5GearboxAdapter(DatasetAdapter):
+    name = "MCC5-Gearbox"
+    sampling_frequency = 12_800
+    channel_names = (
+        "motor_vibration_x",
+        "motor_vibration_y",
+        "motor_vibration_z",
+        "gearbox_vibration_x",
+        "gearbox_vibration_y",
+        "gearbox_vibration_z",
+    )
+    class_names = GEARBOX_CLASSES
+    domains = GEARBOX_DOMAINS
+    condition_profile = GEARBOX_CONDITION_PROFILE
+    recommended_source_domains = GEARBOX_DOMAINS[0].name, GEARBOX_DOMAINS[1].name
+    vibration_columns = (2, 3, 4, 5, 6, 7)
+
+    @staticmethod
+    @lru_cache(maxsize=len(GEARBOX_CLASSES))
+    def _read_recording(path: Path) -> np.ndarray:
+        return np.loadtxt(
+            path,
+            delimiter=",",
+            skiprows=1,
+            usecols=MCC5GearboxAdapter.vibration_columns,
+            dtype=np.float32,
+        )
+
+    def _root(self, raw_root: Path) -> Path:
+        return _first_matching_root(
+            raw_root,
+            ("MCC5-THU_Gearbox", "MCC5"),
+            "health_torque_circulation_1000rpm_10Nm.csv",
+        )
+
+    def recording_paths(
+        self, raw_root: Path, class_name: str, domain_name: str
+    ) -> List[Path]:
+        domain = self.domain(domain_name)
+        return [self._root(raw_root) / f"{class_name}_{domain.raw_key}.csv"]
+
+    def load_windows(
+        self,
+        raw_root: Path,
+        class_name: str,
+        domain_name: str,
+        window_size_points: int,
+    ) -> WindowBatch:
+        path = self.recording_paths(raw_root, class_name, domain_name)[0]
+        data = self._read_recording(path)
+        if data.ndim != 2 or data.shape[1] != len(self.channel_names):
+            raise ValueError(f"Unexpected MCC5-Gearbox shape in {path}: {data.shape}")
+        domain = self.domain(domain_name)
+        return _window_signal(
+            data.T,
+            self.sampling_frequency,
+            self.relative_recording_name(raw_root, path),
+            window_size_points,
+            domain.segments_sec,
         )
 
 
@@ -382,7 +741,116 @@ MOTOR_CLASSES = (
     "winding_H_and_bearing_inner_H",
     "winding_H_and_bearing_outer_H",
 )
-MOTOR_DOMAINS = (
+MOTOR_STEADY_1_SEGMENTS = ((10.0, 30.0), (60.0, 80.0))
+MOTOR_STEADY_2_SEGMENTS = ((35.0, 55.0),)
+MOTOR_PROFILES = (
+    ("torque_1000rpm_20to15Nm", "torque_circulation_20Nm_1000rpm", "20Nm", "15Nm"),
+    ("torque_2000rpm_20to15Nm", "torque_circulation_20Nm_2000rpm", "20Nm", "15Nm"),
+    ("torque_3000rpm_20to15Nm", "torque_circulation_20Nm_3000rpm", "20Nm", "15Nm"),
+    ("torque_3000rpm_40to30Nm", "torque_circulation_40Nm_3000rpm", "40Nm", "30Nm"),
+    ("torque_2000rpm_40to30Nm", "torque_circulation_40Nm_2000rpm", "40Nm", "30Nm"),
+    ("torque_1000rpm_40to30Nm", "torque_circulation_40Nm_1000rpm", "40Nm", "30Nm"),
+    ("speed_40Nm_1000to500rpm", "speed_circulation_40Nm_1000rpm", "1000rpm", "500rpm"),
+    ("speed_40Nm_2000to1500rpm", "speed_circulation_40Nm_2000rpm", "2000rpm", "1500rpm"),
+    ("speed_40Nm_3000to2500rpm", "speed_circulation_40Nm_3000rpm", "3000rpm", "2500rpm"),
+    ("speed_20Nm_2000to1500rpm", "speed_circulation_20Nm_2000rpm", "2000rpm", "1500rpm"),
+    ("speed_20Nm_1000to500rpm", "speed_circulation_20Nm_1000rpm", "1000rpm", "500rpm"),
+)
+MOTOR_DOMAINS = tuple(
+    domain
+    for profile_name, raw_key, steady_1_name, steady_2_name in MOTOR_PROFILES
+    for domain in _mcc5_domain_triplet(
+        profile_name,
+        raw_key,
+        steady_1_name,
+        steady_2_name,
+        MOTOR_STEADY_1_SEGMENTS,
+        MOTOR_STEADY_2_SEGMENTS,
+    )
+)
+MOTOR_CONDITION_PROFILE = (
+    {"phase": "linear_zero_to_steady_1", "start_sec": 0.0, "stop_sec": 10.0},
+    {"phase": "steady_1", "start_sec": 10.0, "stop_sec": 30.0},
+    {
+        "phase": "linear_steady_1_to_steady_2",
+        "start_sec": 30.0,
+        "stop_sec": 35.0,
+    },
+    {"phase": "steady_2", "start_sec": 35.0, "stop_sec": 55.0},
+    {
+        "phase": "linear_steady_2_to_steady_1",
+        "start_sec": 55.0,
+        "stop_sec": 60.0,
+    },
+    {"phase": "steady_1", "start_sec": 60.0, "stop_sec": 80.0},
+    {"phase": "linear_steady_1_to_zero", "start_sec": 80.0, "stop_sec": 90.0},
+)
+
+
+class MCC5MotorAdapter(DatasetAdapter):
+    name = "MCC5-Motor"
+    sampling_frequency = 12_800
+    channel_names = (
+        "motor_vibration_x",
+        "motor_vibration_y",
+        "motor_vibration_z",
+    )
+    class_names = MOTOR_CLASSES
+    domains = MOTOR_DOMAINS
+    condition_profile = MOTOR_CONDITION_PROFILE
+    recommended_source_domains = MOTOR_DOMAINS[0].name, MOTOR_DOMAINS[1].name
+    vibration_columns = (3, 4, 5)
+
+    @staticmethod
+    @lru_cache(maxsize=len(MOTOR_CLASSES))
+    def _read_recording(path: Path) -> np.ndarray:
+        return np.loadtxt(
+            path,
+            delimiter=",",
+            usecols=MCC5MotorAdapter.vibration_columns,
+            dtype=np.float32,
+        )
+
+    def _root(self, raw_root: Path) -> Path:
+        return _first_matching_root(
+            raw_root,
+            ("MCC5-THU_Motor", "MCC5-THU-Motor"),
+            "MCC5-THU Motor_torque_circulation",
+        )
+
+    def recording_paths(
+        self, raw_root: Path, class_name: str, domain_name: str
+    ) -> List[Path]:
+        domain = self.domain(domain_name)
+        mode = domain.raw_key.split("_", 1)[0]
+        folder = self._root(raw_root) / f"MCC5-THU Motor_{mode}_circulation"
+        paths = sorted(folder.glob(f"{class_name}_{domain.raw_key}*.csv"))
+        if len(paths) > 1:
+            raise ValueError(f"Expected one MCC5-Motor file for {class_name}/{domain_name}, got {[path.name for path in paths]}")
+        return paths
+
+    def load_windows(
+        self,
+        raw_root: Path,
+        class_name: str,
+        domain_name: str,
+        window_size_points: int,
+    ) -> WindowBatch:
+        path = self.recording_paths(raw_root, class_name, domain_name)[0]
+        data = self._read_recording(path)
+        if data.ndim != 2 or data.shape[1] != len(self.channel_names):
+            raise ValueError(f"Unexpected MCC5-Motor shape in {path}: {data.shape}")
+        domain = self.domain(domain_name)
+        return _window_signal(
+            data.T,
+            self.sampling_frequency,
+            self.relative_recording_name(raw_root, path),
+            window_size_points,
+            domain.segments_sec,
+        )
+
+
+MOTOR_LEGACY_DOMAINS = (
     DomainDefinition(
         "steady_1000rpm_20Nm",
         "torque_circulation_20Nm_1000rpm",
@@ -401,72 +869,48 @@ MOTOR_DOMAINS = (
 )
 
 
-class MCC5MotorAdapter(DatasetAdapter):
-    name = "MCC5-Motor"
-    sampling_frequency = 12_800
-    channel_names = (
-        "motor_vibration_x",
-        "motor_vibration_y",
-        "motor_vibration_z",
-    )
-    class_names = MOTOR_CLASSES
-    domains = MOTOR_DOMAINS
-    vibration_columns = (3, 4, 5)
+class MCC5MotorLegacyAdapter(MCC5MotorAdapter):
+    """Compatibility adapter for FMCTTA's earlier 0.1-second motor protocol."""
 
-    def _root(self, raw_root: Path) -> Path:
-        return _first_matching_root(
-            raw_root,
-            ("MCC5-THU_Motor", "MCC5-THU-Motor"),
-            "MCC5-THU Motor_torque_circulation",
-        )
-
-    def recording_paths(
-        self, raw_root: Path, class_name: str, domain_name: str
-    ) -> List[Path]:
-        domain = self.domain(domain_name)
-        mode = domain.raw_key.split("_", 1)[0]
-        folder = self._root(raw_root) / f"MCC5-THU Motor_{mode}_circulation"
-        paths = sorted(folder.glob(f"{class_name}_{domain.raw_key}*.csv"))
-        if len(paths) > 1:
-            raise ValueError(
-                f"Expected one MCC5-Motor file for {class_name}/{domain_name}, "
-                f"got {[path.name for path in paths]}"
-            )
-        return paths
-
-    def load_windows(
-        self, raw_root: Path, class_name: str, domain_name: str
-    ) -> WindowBatch:
-        path = self.recording_paths(raw_root, class_name, domain_name)[0]
-        data = np.loadtxt(
-            path,
-            delimiter=",",
-            usecols=self.vibration_columns,
-            dtype=np.float32,
-        )
-        if data.ndim != 2 or data.shape[1] != len(self.channel_names):
-            raise ValueError(f"Unexpected MCC5-Motor shape in {path}: {data.shape}")
-        domain = self.domain(domain_name)
-        return _window_signal(
-            data.T,
-            self.sampling_frequency,
-            self.relative_recording_name(raw_root, path),
-            domain.segments_sec,
-        )
+    name = "MCC5-Motor-Legacy"
+    domains = MOTOR_LEGACY_DOMAINS
+    recommended_source_domains = (MOTOR_LEGACY_DOMAINS[0].name,)
 
 
 DATASETS: Dict[str, DatasetAdapter] = {
     adapter.name: adapter
-    for adapter in (PUAdapter(), WTAdapter(), MCC5MotorAdapter(), HUSTGearboxAdapter())
+    for adapter in (
+        PUAdapter(),
+        WTAdapter(),
+        SDUSTBearingAdapter(),
+        SDUSTGearAdapter(),
+        MCC5GearboxAdapter(),
+        MCC5MotorAdapter(),
+        MCC5MotorLegacyAdapter(),
+        HUSTGearboxAdapter(),
+    )
 }
 
 
 ALIASES = {
     "pu": "PU",
     "wt": "WT",
+    "sdust-bearing": "SDUST-Bearing",
+    "sdust_bearing": "SDUST-Bearing",
+    "sudst-bearing": "SDUST-Bearing",
+    "sudst_bearing": "SDUST-Bearing",
+    "sdust-gear": "SDUST-Gear",
+    "sdust_gear": "SDUST-Gear",
+    "sudst-gear": "SDUST-Gear",
+    "sudst_gear": "SDUST-Gear",
     "mcc5-motor": "MCC5-Motor",
     "mcc5_thu_motor": "MCC5-Motor",
     "mcc5-thu-motor": "MCC5-Motor",
+    "mcc5-motor-legacy": "MCC5-Motor-Legacy",
+    "mcc5_motor_legacy": "MCC5-Motor-Legacy",
+    "mcc5-gearbox": "MCC5-Gearbox",
+    "mcc5_thu_gearbox": "MCC5-Gearbox",
+    "mcc5-thu-gearbox": "MCC5-Gearbox",
     "hust-gearbox": "HUST-Gearbox",
     "hust_gearbox": "HUST-Gearbox",
 }

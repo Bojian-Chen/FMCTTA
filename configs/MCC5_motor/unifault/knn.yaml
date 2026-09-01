@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/MCC5_motor/unifault/knn.yaml
+base:
+  - base.yaml
+  - ../../methods/knn.yaml
+
+runtime:
+  run_name: mcc5-motor-unifault-small-knn
+

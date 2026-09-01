@@ -1,4 +1,4 @@
-"""Label-free online adapters for UniFreq fault classifiers."""
+"""Label-free online adapters for fault foundation-model classifiers."""
 
 import copy
 import math
@@ -20,11 +20,15 @@ ADAPTATION_PARAMETER_SCOPES = (
 )
 GRADIENT_ADAPTATION_METHODS = {
     "tent",
+    "note",
     "eata",
     "sar",
     "cotta",
     "vida",
     "continual_mae",
+    "rotta",
+    "tca",
+    "ttt",
 }
 
 
@@ -51,13 +55,15 @@ def resolve_adaptation_parameter_scope(method: str, scope: str) -> str:
     if method not in GRADIENT_ADAPTATION_METHODS:
         if scope != "default":
             raise ValueError(
-                f"--adaptation-parameter-scope does not apply to {method!r}"
+                f"--adaptation_parameter_scope does not apply to {method!r}"
             )
         return "none"
     if scope == "default":
         return (
             "all"
-            if method in {"cotta", "vida", "continual_mae"}
+            if method in {"cotta", "vida", "continual_mae", "tca"}
+            else "backbone"
+            if method == "ttt"
             else "layernorm"
         )
     return scope
@@ -807,6 +813,31 @@ def build_adapter(
     eata_fisher_alpha: float = 1.0,
     eata_entropy_margin: Optional[float] = None,
     eata_diversity_margin: float = 0.95,
+    note_memory_size: int = 64,
+    note_update_interval: int = 64,
+    note_temperature: float = 1.0,
+    rotta_memory_size: int = 64,
+    rotta_update_frequency: int = 64,
+    rotta_nu: float = 0.001,
+    rotta_bn_alpha: float = 0.05,
+    rotta_lambda_t: float = 1.0,
+    rotta_lambda_u: float = 1.0,
+    rotta_augmentation_noise_std: float = 0.005,
+    rotta_augmentation_scale_std: float = 0.05,
+    rotta_augmentation_mask_probability: float = 0.0,
+    rotta_augmentation_shift_ratio: float = 0.0,
+    tca_teacher_momentum: float = 0.999,
+    tca_centroid_momentum: float = 0.9,
+    tca_topology_weight_momentum: float = 0.8,
+    tca_alignment_weight: float = 0.025,
+    tca_topology_weight: float = 0.15,
+    tca_uniformity_temperature: float = 2.0,
+    tca_symmetric_alpha: float = 0.5,
+    tca_augmentation_noise_std: float = 0.005,
+    tca_augmentation_scale_std: float = 0.05,
+    tca_augmentation_mask_probability: float = 0.0,
+    tca_augmentation_shift_ratio: float = 0.0,
+    ttt_auxiliary_head: Optional[nn.Module] = None,
     sar_rho: float = 0.05,
     sar_entropy_margin: Optional[float] = None,
     sar_reset_threshold: float = 0.2,
@@ -864,6 +895,84 @@ def build_adapter(
     if method == "tent":
         return TentAdapter(
             model, device, learning_rate, steps, weight_decay, scope
+        )
+    if method == "note":
+        # Imported lazily because note.py reuses the public adapter base and
+        # parameter-selection helpers from this module.
+        from .note import NOTEAdapter
+
+        return NOTEAdapter(
+            model,
+            device,
+            learning_rate,
+            num_classes,
+            steps,
+            weight_decay,
+            scope,
+            note_memory_size,
+            note_update_interval,
+            note_temperature,
+        )
+    if method == "ttt":
+        from .ttt import TTTAdapter
+
+        if ttt_auxiliary_head is None:
+            raise ValueError(
+                "TTT requires an auxiliary head trained jointly on the source domain"
+            )
+        return TTTAdapter(
+            model,
+            ttt_auxiliary_head,
+            device,
+            learning_rate,
+            steps,
+            weight_decay,
+            scope,
+        )
+    if method == "rotta":
+        from .rotta import RoTTAAdapter
+
+        return RoTTAAdapter(
+            model,
+            device,
+            learning_rate,
+            num_classes,
+            rotta_memory_size,
+            rotta_update_frequency,
+            rotta_nu,
+            rotta_bn_alpha,
+            rotta_lambda_t,
+            rotta_lambda_u,
+            rotta_augmentation_noise_std,
+            rotta_augmentation_scale_std,
+            rotta_augmentation_mask_probability,
+            rotta_augmentation_shift_ratio,
+            weight_decay,
+            steps,
+            scope,
+        )
+    if method == "tca":
+        from .tca import TCAAdapter
+
+        return TCAAdapter(
+            model,
+            device,
+            learning_rate,
+            num_classes,
+            tca_teacher_momentum,
+            tca_centroid_momentum,
+            tca_topology_weight_momentum,
+            tca_alignment_weight,
+            tca_topology_weight,
+            tca_uniformity_temperature,
+            tca_symmetric_alpha,
+            tca_augmentation_noise_std,
+            tca_augmentation_scale_std,
+            tca_augmentation_mask_probability,
+            tca_augmentation_shift_ratio,
+            weight_decay,
+            steps,
+            scope,
         )
     if method == "eata":
         return EATAAdapter(

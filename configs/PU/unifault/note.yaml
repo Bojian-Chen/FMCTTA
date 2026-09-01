@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/PU/unifault/note.yaml
+base:
+  - base.yaml
+  - ../../methods/note.yaml
+
+runtime:
+  run_name: pu-unifault-small-note
+

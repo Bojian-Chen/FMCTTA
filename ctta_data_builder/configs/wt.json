@@ -21,6 +21,7 @@
     "7": "55"
   },
   "samples_per_class": 200,
+  "window_size_points": 4800,
   "selection": "uniform",
   "target_stream_order": "interleaved"
 }

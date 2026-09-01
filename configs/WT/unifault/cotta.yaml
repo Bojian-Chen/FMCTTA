@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/WT/unifault/cotta.yaml
+base:
+  - base.yaml
+  - ../../methods/cotta.yaml
+
+runtime:
+  run_name: wt-unifault-small-cotta
+

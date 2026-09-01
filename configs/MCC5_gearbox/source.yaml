@@ -1,0 +1,12 @@
+# Run: python main.py --config configs/MCC5_gearbox/source.yaml
+base: base.yaml
+
+protocol:
+  method: source
+
+model:
+  source_checkpoint: ""
+
+runtime:
+  run_name: mcc5-gearbox-source
+

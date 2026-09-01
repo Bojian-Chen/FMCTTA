@@ -10,6 +10,7 @@ from safetensors.torch import load_file, save_file
 from torch.utils.data import DataLoader
 
 from .metrics import ClassificationMeter
+from .ttt import ttt_auxiliary_logits
 
 
 @dataclass
@@ -45,6 +46,8 @@ def train_source(
     backbone_lr_scale: float,
     weight_decay: float,
     gradient_clip: float,
+    ttt_auxiliary_head: Optional[nn.Module] = None,
+    ttt_auxiliary_weight: float = 1.0,
 ) -> SourceTrainingResult:
     if epochs < 1:
         raise ValueError("source epochs must be at least 1")
@@ -52,7 +55,15 @@ def train_source(
         raise ValueError("source backbone learning-rate scale cannot be negative")
 
     model.to(device)
+    if ttt_auxiliary_weight < 0:
+        raise ValueError("TTT source auxiliary weight cannot be negative")
+    if ttt_auxiliary_head is not None:
+        ttt_auxiliary_head.to(device)
     parameter_groups = [{"params": model.head.parameters(), "lr": learning_rate}]
+    if ttt_auxiliary_head is not None:
+        parameter_groups.append(
+            {"params": ttt_auxiliary_head.parameters(), "lr": learning_rate}
+        )
     if backbone_lr_scale > 0:
         model.enable_encoder_finetuning()
         parameter_groups.insert(
@@ -68,12 +79,19 @@ def train_source(
     optimizer = torch.optim.AdamW(parameter_groups, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     best_state = copy.deepcopy(model.state_dict())
+    best_ttt_state = (
+        copy.deepcopy(ttt_auxiliary_head.state_dict())
+        if ttt_auxiliary_head is not None
+        else None
+    )
     best_macro_f1 = -1.0
     best_epoch = 0
     history: List[Dict[str, float]] = []
 
     for epoch in range(1, epochs + 1):
         model.train()
+        if ttt_auxiliary_head is not None:
+            ttt_auxiliary_head.train()
         if backbone_lr_scale == 0:
             model.encoder.eval()
         loss_sum = 0.0
@@ -84,7 +102,19 @@ def train_source(
             labels = labels.to(device)
             optimizer.zero_grad(set_to_none=True)
             logits = model(inputs)
-            loss = nn.functional.cross_entropy(logits, labels)
+            classification_loss = nn.functional.cross_entropy(logits, labels)
+            auxiliary_loss = classification_loss.new_zeros(())
+            if ttt_auxiliary_head is not None:
+                auxiliary_logits, transform_labels = ttt_auxiliary_logits(
+                    model,
+                    ttt_auxiliary_head,
+                    inputs,
+                )
+                auxiliary_loss = nn.functional.cross_entropy(
+                    auxiliary_logits,
+                    transform_labels,
+                )
+            loss = classification_loss + ttt_auxiliary_weight * auxiliary_loss
             loss.backward()
             if gradient_clip > 0:
                 nn.utils.clip_grad_norm_(
@@ -127,8 +157,12 @@ def train_source(
             best_macro_f1 = validation["macro_f1"]
             best_epoch = epoch
             best_state = copy.deepcopy(model.state_dict())
+            if ttt_auxiliary_head is not None:
+                best_ttt_state = copy.deepcopy(ttt_auxiliary_head.state_dict())
 
     model.load_state_dict(best_state, strict=True)
+    if ttt_auxiliary_head is not None and best_ttt_state is not None:
+        ttt_auxiliary_head.load_state_dict(best_ttt_state, strict=True)
     model.eval()
     return SourceTrainingResult(best_macro_f1, best_epoch, history)
 
@@ -137,6 +171,7 @@ def save_checkpoint(
     directory: Path,
     model: nn.Module,
     metadata: Mapping[str, object],
+    extra_modules: Optional[Mapping[str, nn.Module]] = None,
 ) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     state = {
@@ -144,6 +179,12 @@ def save_checkpoint(
         for name, value in model.state_dict().items()
     }
     save_file(state, str(directory / "source_model.safetensors"))
+    for name, module in (extra_modules or {}).items():
+        extra_state = {
+            key: value.detach().cpu().contiguous()
+            for key, value in module.state_dict().items()
+        }
+        save_file(extra_state, str(directory / f"{name}.safetensors"))
     (directory / "source_model.json").write_text(
         json.dumps(dict(metadata), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -154,6 +195,7 @@ def load_checkpoint(
     directory: Path,
     model: nn.Module,
     expected_metadata: Mapping[str, object],
+    extra_modules: Optional[Mapping[str, nn.Module]] = None,
 ) -> Dict[str, object]:
     weights_path = directory / "source_model.safetensors"
     metadata_path = directory / "source_model.json"
@@ -175,6 +217,18 @@ def load_checkpoint(
         )
         raise ValueError(f"Source checkpoint is incompatible: {details}")
     model.load_state_dict(load_file(str(weights_path), device="cpu"), strict=True)
+    for name, module in (extra_modules or {}).items():
+        extra_path = directory / f"{name}.safetensors"
+        if not extra_path.is_file():
+            raise ValueError(
+                f"Checkpoint {directory} has no {extra_path.name}; "
+                "TTT requires a checkpoint trained with --method ttt"
+            )
+        module.load_state_dict(
+            load_file(str(extra_path), device="cpu"),
+            strict=True,
+        )
+        module.eval()
     model.eval()
     return metadata
 

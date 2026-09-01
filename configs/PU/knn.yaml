@@ -1,3 +1,4 @@
+# Run: python main.py --config configs/PU/knn.yaml
 # Source-reference kNN baseline. Run configs/PU/source.yaml first.
 base: base.yaml
 

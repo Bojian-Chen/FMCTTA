@@ -1,0 +1,8 @@
+# Run: python main.py --config configs/HUST_Gearbox/tf_profm/tca.yaml
+base:
+  - base.yaml
+  - ../../methods/tca.yaml
+
+runtime:
+  run_name: hust-gearbox-tf-profm-tca
+

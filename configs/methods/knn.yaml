@@ -1,0 +1,7 @@
+# Shared source-reference kNN protocol.
+protocol:
+  method: knn
+
+adaptation:
+  knn_neighbors: 5
+

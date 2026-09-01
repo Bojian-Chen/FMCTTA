@@ -32,6 +32,7 @@
     "24": "40Hz_L4"
   },
   "samples_per_class": 102,
+  "window_size_points": 2560,
   "selection": "uniform",
   "target_stream_order": "interleaved"
 }
