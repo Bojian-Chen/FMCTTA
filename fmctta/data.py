@@ -538,6 +538,20 @@ class FaultDataModule:
             ids = ids[: self.max_target_per_domain]
         return self._make_dataset(ids, domain)
 
+    def source_evaluation_dataset(self, domain: int) -> FaultDomainDataset:
+        """Evaluate source domains on held-out data and other domains in full.
+
+        This diagnostic is independent of target-stream ordering and sampling.
+        It never changes training data or fits target normalization statistics.
+        """
+        if not 0 <= domain < self.spec.num_domains:
+            raise ValueError(f"Invalid source evaluation domain: {domain}")
+        ids = self._domain_indices(domain)
+        if domain in self.source_domains:
+            validation_ids = self.source.validation.sample_ids.numpy()
+            ids = ids[np.isin(ids, validation_ids)]
+        return self._make_dataset(ids, domain)
+
     @staticmethod
     def loader(
         dataset: Dataset,

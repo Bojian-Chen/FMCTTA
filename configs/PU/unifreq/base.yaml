@@ -1,0 +1,82 @@
+# PU 0.1-second dataset profile (64,000 Hz, 6,400 points per sample), migrated
+# from OCTTA. Run from the repository root so the manifest path resolves.
+
+protocol:
+  # Without source_domains, domain 0 is the labeled source. Domains 2 and 3
+  # then alternate six times, giving 12 ordered online target positions.
+  domains: [0, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3]
+  # Ordering inside each target domain: shuffled randomly mixes the selected
+  # samples; class_block groups classes; interleaved cycles through classes.
+  stream_order: shuffled # ["shuffled", "class_block", "interleaved"]
+  # Number of consecutive target samples processed per online update.
+  stream_batch_size: 16
+  # Controls source splitting, sample selection/order, and model randomness.
+  seed: 2025
+
+data:
+  # UniFreq consumes the native 0.1-second windows without resampling.
+  dataset_manifest: data/ctta_custom/PU_0p1s_custom.json
+  # dataset/data_root are omitted because the manifest supplies both.
+  # Dataset-level normalization fitted on source-train only.
+  normalization: none # ["zscore", "minmax", "none"]
+  # Per-class fraction held out for source validation and best-epoch selection.
+  source_validation_ratio: 0.2
+  # true disables known label-layout repairs and fails on malformed data.
+  strict_data: false # [false, true]
+  # Optional debug caps. null disables the cap; the class-balanced selectors
+  # below are mutually exclusive with their corresponding max_* option.
+  max_source_per_class: null
+  max_target_per_domain: null
+  # Domains 2/3 repeat; each occurrence may independently reuse their samples.
+  allow_repeated_target_samples: true # [false, true]
+  # The 1024-point manifest provides 4860 samples per class/domain. This
+  # protocol deliberately selects 200; source selection must match checkpoints.
+  source_samples_per_class: 200
+  target_samples_per_class: 200
+  # Per-class example (14 values, in manifest class order); replace the scalar above with this form when classes need different source allocations:
+  # source_samples_per_class: [200, 180, 160, 140, 120, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+  # Use a nested list for target per-class allocation; one inner list is reused for every target-domain occurrence, while the outer list prevents interpreting values as counts for different target positions.
+  # target_samples_per_class: [[200, 180, 160, 140, 120, 100, 100, 100, 100, 100, 100, 100, 100, 100]]
+  # `;` separates the 12 target positions; `,` separates the 14 classes.
+  # A scalar entry applies to all classes at that position:
+  # target_samples_per_class: "200;200;180;180;160;160;140;140;120;120;100;100"
+
+model:
+  model_id: bojian1/UniFreq-tiny
+  # Empty means the model repository's default revision.
+  model_revision: ""
+  # hf_token is intentionally not stored; inject it securely at runtime.
+  # Empty cache_dir uses the Hugging Face default cache.
+  cache_dir: ""
+  local_files_only: false # [false, true]
+  # Select the UniFreq path used by source training and every target method.
+  feature_branch: frequency # ["fused", "time", "frequency"]
+  # Target methods load the checkpoint produced by source.yaml.
+  source_checkpoint: outputs/PU_0p1s_custom/source/pu-source-seed2025/source_checkpoint
+  classifier: mlp # ["mlp", "linear", "cosine"]
+  # Dropout probability used by classifiers that contain dropout layers.
+  classifier_dropout: 0.0
+  # Batch size for source validation and offline target diagnostics.
+  eval_batch_size: 128
+  # Source-training settings shared by source.yaml and target methods.
+  source_epochs: 30
+  source_batch_size: 64
+  source_learning_rate: 0.01
+  source_backbone_lr_scale: 0.01
+  source_weight_decay: 0.0001
+  source_gradient_clip: 1.0
+
+adaptation:
+  # Shared defaults; method YAML files may override any of these values.
+  adaptation_learning_rate: 0.0025
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+  adaptation_parameter_scope: default # ["default", "layernorm", "classifier", "backbone", "all"]
+
+runtime:
+  # auto selects CUDA when available, otherwise CPU; cpu/cuda/cuda:0 are valid.
+  device: auto
+  # DataLoader worker processes; 0 loads data in the main process.
+  workers: 0
+  # Results are written under output_dir/dataset/method/run_name-seedN.
+  output_dir: outputs

@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/PU/unifreq/gold.yaml
+base:
+  - base.yaml
+  - ../../methods/gold.yaml
+
+runtime:
+  run_name: pu-gold

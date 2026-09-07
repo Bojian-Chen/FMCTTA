@@ -18,7 +18,7 @@ FMCTTA 首先用一个有标签源域为预训练故障基础模型训练下游�
 
 - 可从 Hugging Face 加载 UniFreq，也可直接读取 PHMFD `log` 中的 UniFault、
   TF-ProFM 预训练 checkpoint；无需重新预训练。
-- 支持 Source-only、源域 kNN、TENT、NOTE、EATA、SAR、CoTTA、ViDA、Continual-MAE、RoTTA、TCA 和经典 TTT。
+- 支持 Source-only、源域 kNN、TENT、NOTE、EATA、SAR、CoTTA、ViDA、Continual-MAE、RoTTA、TCA、GOLD 和经典 TTT。
 - 目标标签不会传入任何适配器，只在预测完成后用于计算评估指标。
 - 严格采用单遍目标流，并记录跨域源域遗忘。
 - 源域模型使用 `safetensors` 保存，同时输出逐域、逐样本和在线/适配后指标。
@@ -69,6 +69,7 @@ FMCTTA 首先用一个有标签源域为预训练故障基础模型训练下游�
 | `continual_mae` | 频域点分布感知掩码 + 重建 + 教师一致性 | 全部基础参数 + MAE 辅助参数 |
 | `rotta` | CSTU 时效/不确定性内存 + EMA 一致性 | LayerNorm 仿射参数 |
 | `tca` | 持续类别中心、拓扑一致性和双视图对齐 | 全部参数 |
+| `gold` | AGOP 低秩子空间、自训练与源原型对比损失 | 全部参数 + 缩放向量和投影头 |
 | `ttt` | 四路循环移位预测；先适应再做主任务预测 | 基础模型主干 + 辅助头 |
 
 除依赖 UniFreq global-FFT token 接口的 `continual_mae` 外，其余方法均可使用三种
@@ -195,15 +196,16 @@ python main.py \
 
 完整实验 YAML 位于 `configs/PU`、`configs/WT`、`configs/HUST_Gearbox`、
 `configs/MCC5_gearbox`、`configs/MCC5_motor`、`configs/SDUST_Bearing` 和
-`configs/SDUST_Gear`。每个数据集根目录提供 UniFreq 配置，`unifault/` 和 `tf_profm/`
-子目录分别提供 UniFault-small 与 TF-ProFM 的 source、kNN、TENT、NOTE、EATA、SAR、
-CoTTA、ViDA、RoTTA、TCA 和 TTT 配置；Continual-MAE 只用于 UniFreq。
+`configs/SDUST_Gear`。每个数据集目录都分为 `unifreq/`、`unifault/` 和 `tf_profm/`：
+三者分别提供 UniFreq、UniFault-small 与 TF-ProFM 配置。UniFault-small 和 TF-ProFM
+包含 source、kNN、TENT、NOTE、EATA、SAR、CoTTA、ViDA、RoTTA、TCA、GOLD 和 TTT；
+Continual-MAE 只位于 `unifreq/`。
 详细的目录、运行顺序和参数说明见 [`configs/README_zh.md`](configs/README_zh.md)。
 例如，先训练 PU 的源模型，再运行 TENT：
 
 ```bash
-python main.py --config configs/PU/source.yaml
-python main.py --config configs/PU/tent.yaml
+python main.py --config configs/PU/unifreq/source.yaml
+python main.py --config configs/PU/unifreq/tent.yaml
 
 python main.py --config configs/PU/unifault/source.yaml
 python main.py --config configs/PU/unifault/tent.yaml
@@ -217,7 +219,7 @@ python main.py --config configs/PU/tf_profm/tent.yaml
 然后复用该 checkpoint 运行 TENT：
 
 ```bash
-python main.py --config configs/PU/tent.yaml
+python main.py --config configs/PU/unifreq/tent.yaml
 ```
 
 把 `tent` 替换为 `note`、`eata`、`sar`、`cotta`、`vida`、`continual_mae`、`rotta`
@@ -282,3 +284,5 @@ pytest
 ## 许可证
 
 本项目使用 [MIT License](LICENSE)。
+
+GOLD 的运行方式、参数和移植差异见 [docs/GOLD_ZH.md](docs/GOLD_ZH.md)。

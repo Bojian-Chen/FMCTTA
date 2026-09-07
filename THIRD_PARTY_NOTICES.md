@@ -90,3 +90,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## GOLD
+
+`fmctta/gold.py` implements the classification algorithm described in
+*The Golden Subspace: Where Efficiency Meets Generalization in Continual
+Test-Time Adaptation* (Guannan Lai, Da-Wei Zhou, Zhenguo Li, Han-Jia Ye;
+CVPR 2026), with reference to [AIGNLAI/GOLD](https://github.com/AIGNLAI/GOLD),
+`classification/methods/gold.py` and `classification/conf.py` (accessed
+2026-09-07). The implementation uses FMCTTA's own model, augmentation and
+runner interfaces. Signal-domain extensions and protocol differences are
+documented in `docs/GOLD_ZH.md`. No upstream license is asserted here.

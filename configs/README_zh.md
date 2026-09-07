@@ -7,7 +7,7 @@
 ## 最小示例
 
 ```yaml
-# configs/PU/my_tent.yaml
+# configs/PU/unifreq/my_tent.yaml
 base: base.yaml
 
 protocol:
@@ -23,7 +23,7 @@ runtime:
 运行：
 
 ```bash
-python main.py --config configs/PU/my_tent.yaml
+python main.py --config configs/PU/unifreq/my_tent.yaml
 ```
 
 ## 读取、继承与覆盖规则
@@ -54,19 +54,20 @@ adaptation_parameter_scope: layernorm
 注意：这条转换只针对**键名**，不转换参数值。因此 `class_block` 必须保留为
 `class_block`，不能写成 `class-block`。未知键会直接报错。
 
-除非另有说明，下面的“程序默认值”指不加载 YAML 时 `main.py` 使用的值；每个数据集的
-`base.yaml` 显式固定共享的训练、适应和运行时参数，以及该数据集的 manifest、域序列、
-样本数、特征分支和 checkpoint；每个方法 YAML 显式固定自己的专用超参数及更新范围。
-两层继承后构成完整实验配置。只有 `dataset`/`data_root`（由
+除非另有说明，下面的“程序默认值”指不加载 YAML 时 `main.py` 使用的值；每个模型子目录的
+`base.yaml` 都是自包含配置，分别显式固定该模型使用的 manifest、域序列、样本数、模型、
+适配默认值、运行参数和 checkpoint。UniFault 与 TF-ProFM 的 `base.yaml` 不再继承
+`unifreq/base.yaml`。每个方法 YAML 只在对应模型的独立 `base.yaml` 之上覆盖方法专用参数。
+只有 `dataset`/`data_root`（由
 `dataset_manifest` 动态决定）、`hf_token`（不应写入版本库）与 `config`（YAML 文件入口）
 不写进 YAML。
 
 ## 数据集目录与运行顺序
 
-现有数据集目录根部的 YAML 是 UniFreq 实验；`unifault/` 和 `tf_profm/` 分别提供
-UniFault-small 与 TF-ProFM 的完整兼容方法矩阵。模型目录中的方法 YAML 使用两个父配置：
-先加载数据集/模型的 `base.yaml`，再加载 `configs/methods/` 中的方法公共参数。这样数据流、
-checkpoint 和算法参数彼此独立，目录结构仍与 OCTTA 的“数据集 × 方法”组织方式一致：
+每个数据集目录统一分为 `unifreq/`、`unifault/` 和 `tf_profm/`，分别提供 UniFreq、
+UniFault-small 与 TF-ProFM 的实验矩阵。三个模型目录的 `base.yaml` 各自完整保存数据流和
+模型设置，彼此不继承。具体方法 YAML 再加载本目录的 `base.yaml` 和 `configs/methods/`
+中的方法公共参数，目录结构仍与 OCTTA 的“数据集 × 方法”组织方式一致：
 
 ```text
 configs/
@@ -75,9 +76,10 @@ configs/
 │   ├── tent.yaml
 │   └── ...
 ├── PU/
-│   ├── base.yaml            # PU 数据、UniFreq 模型和在线协议
-│   ├── source.yaml ... ttt.yaml
-│   ├── continual_mae.yaml   # UniFreq 专用
+│   ├── unifreq/
+│   │   ├── base.yaml        # PU 数据、UniFreq 模型和在线协议
+│   │   ├── source.yaml ... ttt.yaml
+│   │   └── continual_mae.yaml  # UniFreq 专用
 │   ├── unifault/
 │   │   ├── base.yaml        # UniFault-small + 自动 PHMFD 权重
 │   │   └── source.yaml ... ttt.yaml
@@ -90,19 +92,19 @@ configs/
 
 同样的三模型结构位于 `HUST_Gearbox/`、`MCC5_gearbox/`、`MCC5_motor/`、
 `SDUST_Bearing/` 和 `SDUST_Gear/`。UniFault/TF-ProFM 支持 source、kNN、TENT、NOTE、
-EATA、SAR、CoTTA、ViDA、RoTTA、TCA 和 TTT；`continual_mae` 依赖 UniFreq 的
-global-FFT token，因此只保留在数据集目录根部。TTT 的 `ttt.yaml` 会清空普通 source
+EATA、SAR、CoTTA、ViDA、RoTTA、TCA、GOLD 和 TTT；`continual_mae` 依赖 UniFreq 的
+global-FFT token，因此只保留在 `unifreq/`。TTT 的 `ttt.yaml` 会清空普通 source
 checkpoint，独立联合训练辅助头；其他适应方法先运行同一模型子目录的 `source.yaml`。
 
-请从仓库根目录运行。先运行对应数据集的 `source.yaml`，它会保存 source checkpoint；
+请从仓库根目录运行。先运行对应模型子目录的 `source.yaml`，它会保存 source checkpoint；
 再运行任意适应方法的 YAML。例如：
 
 ```bash
-python main.py --config configs/PU/source.yaml
-python main.py --config configs/PU/knn.yaml
+python main.py --config configs/PU/unifreq/source.yaml
+python main.py --config configs/PU/unifreq/knn.yaml
 
-python main.py --config configs/WT/source.yaml
-python main.py --config configs/WT/vida.yaml
+python main.py --config configs/WT/unifreq/source.yaml
+python main.py --config configs/WT/unifreq/vida.yaml
 
 # UniFault-small：先训练本模型的 source，再运行目标适应方法
 python main.py --config configs/PU/unifault/source.yaml
@@ -113,12 +115,12 @@ python main.py --config configs/PU/tf_profm/source.yaml
 python main.py --config configs/PU/tf_profm/tca.yaml
 ```
 
-数据集配置使用 `data/ctta_custom` 中从 OCTTA 迁移的 1024 点 manifest。PU 是
-14 类、4 域（`[0, 1, 2, 3]`），每类每域有 4860 个样本；WT 是 5 类、8 域
-（`[0, 1, 2, 3, 4, 5, 6, 7]`），每类每域有 900 个样本。为控制实验规模，两者的
-`base.yaml` 仍显式选择 `source_samples_per_class: 200` 和
-`target_samples_per_class: 200`。两个数据集的配置都显式采用
-`shuffled`；PU 还开启 `allow_repeated_target_samples`，以支持其重复的域 1 流位置。
+模型族使用两套原采样率 manifest：`unifreq/` 与 `unifault/` 使用完整 0.1 秒窗口，
+其中 UniFreq 保持原长度，UniFault 在模型侧重采样到预训练模型要求的长度；
+`tf_profm/` 使用 1024 点窗口。为控制实验规模，PU 与 WT 的各模型目录都显式选择
+`source_samples_per_class: 200` 和 `target_samples_per_class: 200`。两个数据集的配置都
+显式采用 `shuffled`；PU 还开启
+`allow_repeated_target_samples`，以支持域 2/3 各重复六次的 12 个目标流位置。
 每个模型目录的 `base.yaml` 都把 `source_checkpoint` 精确指向该模型 `source.yaml` 使用
 默认 `output_dir`、`seed` 和 `run_name` 时生成的位置，因此 target-domain 方法会自动
 继承正确模型的 checkpoint；共享的 `methods/source.yaml` 会将该项覆盖为空字符串，以确保
@@ -132,7 +134,7 @@ source 入口训练并保存新 checkpoint。若修改这三项或源模型设�
 | `dataset` | `PU`；`PU`、`WT`、`HUST`、`HUST_gear`、`MCC5_THU_Gearbox`、`MCC5_THU_Motor` | 使用内置数据集规格。设置 `dataset_manifest` 后会由清单中的动态数据集规格覆盖。 |
 | `domains` | 空，即使用数据集默认序列 | 未设置 `source_domains` 时是兼容旧配置的完整域序列：第一个域为 source，其余为 target。设置 `source_domains` 后只表示无标签目标流，并且必须显式填写。可写字符串 `"3,2,0,1"` 或 YAML 列表 `[3, 2, 0, 1]`；目标域允许重复。 |
 | `source_domains` | 空 | 可选的独立有标签源域列表；多个域会混合用于 source 训练和验证。设置后不得与 `domains` 重叠。SDUST-Bearing 默认使用 `[0, 1, 2, 3]`，即联合使用 1000 rpm 下四种负载。 |
-| `method` | `source`；`source`、`knn`、`tent`、`note`、`eata`、`sar`、`cotta`、`vida`、`continual_mae`、`rotta`、`tca`、`ttt` | 实验方法。`source` 与 `knn` 不更新；TTT 先用当前 batch 的自监督任务更新再产生原生主预测；其余方法保留统一的更新前 online 指标与更新后诊断。 |
+| `method` | `source`；`source`、`knn`、`tent`、`note`、`eata`、`sar`、`cotta`、`vida`、`continual_mae`、`rotta`、`tca`、`gold`、`ttt` | 实验方法。`source` 与 `knn` 不更新；TTT 先用当前 batch 的自监督任务更新再产生原生主预测；其余方法保留统一的更新前 online 指标与更新后诊断。 |
 | `stream_order` | `null`，即使用数据集的 `default_stream_order` | 每一个目标域内部的样本送入顺序：`class_block` 先完成一个类别再处理下一类；`interleaved` 按类别轮流取样；`shuffled` 将本目标流已选的全部样本随机混排。它只改变顺序，不改变各类被选样本数。PU/WT 的数据集基础配置显式设为 `shuffled`，以固定实验协议。 |
 | `stream_batch_size` | `16`，正整数 | 在线目标流的 batch 大小。适应方法通常每个 batch 更新一次（`adaptation_steps` 可增加同一 batch 的更新次数）；改变它会改变在线适应轨迹，不只是显存占用。 |
 | `seed` | `2025` | 随机种子，用于源域划分、样本选择/排序、模型随机性及数据加载等。相同环境和配置下有助于复现；不同硬件或底层库仍可能带来微小差异。 |
@@ -240,7 +242,7 @@ allow_repeated_target_samples: true
 
 | 值 | 更新范围 |
 | --- | --- |
-| `default` | TENT/NOTE/EATA/SAR/RoTTA 等同 `layernorm`；CoTTA/ViDA/Continual-MAE/TCA 等同 `all`；TTT 等同 `backbone`。 |
+| `default` | TENT/NOTE/EATA/SAR/RoTTA 等同 `layernorm`；CoTTA/ViDA/Continual-MAE/TCA/GOLD 等同 `all`；TTT 等同 `backbone`。 |
 | `layernorm` | 所有 `LayerNorm` 层的仿射参数。 |
 | `classifier` | 仅下游分类头。 |
 | `backbone` | 仅所选基础模型的编码器主干。 |
@@ -380,3 +382,21 @@ LayerNorm 仿射参数。
 - 两个数据集的 `source.yaml` 均从完整源域数据训练，目标域也默认使用各类全部 200 个样本；若需要小规模实验，可在数据集 `base.yaml` 或某个方法 YAML 中添加 `source_samples_per_class`、`target_samples_per_class`，也可使用互斥的 `max_*` 调试参数。
 - `knn.yaml` 不设置更新范围；`tent.yaml`、`note.yaml`、`eata.yaml`、`sar.yaml` 选择 `layernorm`；`cotta.yaml`、`vida.yaml`、`continual_mae.yaml` 选择 `all`，与各方法的默认更新范围一致。
 - 每个方法 YAML 显式列出该方法的专用超参数及其当前默认值，便于对单一方法做消融；两个数据集使用相同的算法超参数，唯一的数据集差异保留在各自的 `base.yaml` 中。
+
+### GOLD
+
+所有数据集的三个模型子目录均提供 `gold.yaml`，继承 `configs/methods/gold.yaml`。
+GOLD 使用 Adam，默认更新全部基础模型参数、低秩缩放向量和投影头；进入目标流前
+从 source train 计算类别原型，额外 source warm-up 默认关闭。参数与官方实现差异见
+[docs/GOLD_ZH.md](../docs/GOLD_ZH.md)。
+
+### Source 全域诊断与 TTA 对比
+
+`protocol.source_eval_domains` 默认 `all`，也支持 `targets` 或域 ID 列表。source
+训练结束后输出独立的 `source_evaluation.csv/json`；训练域使用验证集，其余域使用
+全域样本。该选项与 TTA 的 `domains` 独立，完整域诊断不应用目标采样上限。
+
+TTA 自动对本次实际目标样本运行冻结 source classifier，生成 `source_baseline.csv/json`，
+并在 `domains.csv` / `summary.json` 中增加百分点提升和相对提升。支持域子集、重排、
+重复域和采样调整，不要求旧 checkpoint 已有 source 评估文件。
+详见 [SDUST_ZH.md](../docs/SDUST_ZH.md#source-各域表现与-tta-相对提升)。

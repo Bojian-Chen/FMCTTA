@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifreq/source.yaml
+base:
+  - base.yaml
+  - ../../methods/source.yaml
+
+runtime:
+  run_name: hust-gearbox-source

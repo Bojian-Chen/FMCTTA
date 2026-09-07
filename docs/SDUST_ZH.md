@@ -165,7 +165,7 @@ upper_z, upper_y, upper_x, lower_z, lower_y, lower_x
 | 34 | `speed_1500to2500rpm_40N` | 1500→2500 rpm | 40 N | 连续变转速 |
 | 35 | `speed_1500to2500rpm_60N` | 1500→2500 rpm | 60 N | 连续变转速 |
 
-当前 [SDUST_Bearing/base.yaml](../configs/SDUST_Bearing/base.yaml) 使用：
+当前 [SDUST_Bearing/base.yaml](../configs/SDUST_Bearing/unifreq/base.yaml) 使用：
 
 ```yaml
 source_domains: [0, 1, 2, 3]
@@ -233,7 +233,7 @@ left_z, left_y, left_x, right_z, right_y, right_x
 线性、每一阶段持续多久或 domain 18 的精确转速/负载轨迹，因此实验中不应虚构这些
 时间参数。
 
-当前 [SDUST_Gear/base.yaml](../configs/SDUST_Gear/base.yaml) 使用 domain 0 作为 source，
+当前 [SDUST_Gear/base.yaml](../configs/SDUST_Gear/unifreq/base.yaml) 使用 domain 0 作为 source，
 并把 domain 1–18 全部作为 target。域的输入顺序是列表顺序，但由于
 `stream_order: shuffled`，每个域内部的窗口仍被随机打乱。
 
@@ -302,7 +302,7 @@ protocol:
 ### 5.4 方法与指标
 
 建议至少比较 Source、kNN、TENT、EATA、SAR、CoTTA、NOTE、RoTTA、TTT、
-Continual-MAE 与 TCA。除需要额外 source 训练头的方法外，其余方法应复用相同的 source
+Continual-MAE、TCA 与 GOLD。除需要额外 source 训练头的方法外，其余方法应复用相同的 source
 checkpoint。
 
 建议同时报告：
@@ -344,3 +344,86 @@ python -m ctta_data_builder.build \
 构建后以生成的 manifest 为准。source 与 target 域由实验 YAML 决定；JSON 中 domain 的
 排列只决定编号，不会自动指定哪个域必须是 source 或 target。同一个 domain ID 不能
 同时出现在 `source_domains` 和 `domains` 中。
+
+### GOLD
+
+复用同模型的 source checkpoint 后运行：
+
+```bash
+python main.py --config configs/SDUST_Bearing/unifault/gold.yaml
+```
+
+`SDUST_Gear` 以及 `unifreq`、`tf_profm` 目录同样提供 `gold.yaml`。
+GOLD 会从 source train 提取类别原型，目标流不读取标签；参数与移植差异见
+[GOLD_ZH.md](GOLD_ZH.md)。
+
+## Source 各域表现与 TTA 相对提升
+
+Source 训练结束、选定最佳 checkpoint 后，默认额外评估所有域。该诊断独立于
+`domains` 指定的在线流，不会把测试域加入训练，也不会根据测试域指标选择 checkpoint。
+源域本身只评估 source validation，避免把训练集准确率当作泛化表现；其余域使用
+完整样本，不受 `target_samples_per_class` 或 `max_target_per_domain` 限制。
+
+```yaml
+protocol:
+  source_eval_domains: all  # 默认；也可写 targets 或 [4, 8, 12]
+```
+
+- `all`：所有域，包括源域验证集。
+- `targets`：当前 `domains` 中的目标域，去重后评估完整域。
+- 域 ID 列表：只做指定域的 source 诊断；不改变在线目标序列。
+
+Source 实验目录生成 `source_evaluation.csv` 和 `source_evaluation.json`，包含
+`domain`、`domain_name`、`evaluation_split`、样本数、Accuracy、Balanced Accuracy、
+Macro-F1 等。JSON 按域 ID 建索引，新训练的 checkpoint 目录也保存一份该 JSON。
+只有 source 模式或本次确实训练了源模型才执行此全域诊断；加载 checkpoint 的 TTA
+实验只额外计算本次实际目标样本的 source 基线。
+
+例如先训练 source 并评估所有域，再按选择的域顺序执行 GOLD：
+
+```bash
+python main.py --config configs/SDUST_Bearing/unifault/source.yaml --source_eval_domains all
+python main.py --config configs/SDUST_Bearing/unifault/gold.yaml --domains 12,4,8
+```
+
+`source_domains` 仍代表训练域，`domains` 在显式设置 `source_domains` 时仅代表目标流。
+不要为全域诊断把训练域塞进 `domains`，使用 `source_eval_domains` 即可。
+TTA 可删减、重排目标域，也可按现有重复域采样规则重复某域；不同出现次数分别记录。
+
+### 精确匹配与输出
+
+TTA 使用本次加载的未适应 source classifier，在每个目标 batch 的**同一批样本**上
+重新计算基线。不会把旧 source 报告按行拼接，也不会拿完整域分数与抽样后的 TTA 分数
+直接相减。即使旧 checkpoint 没有 `source_evaluation.json`，也可以计算提升。
+因此会增加一次冻结 source 模型的目标前向计算。
+
+- `source_baseline.csv/json`：本次实际选中的每个目标域出现次数的 source 表现，记录
+  `domain`、`position`、样本数和样本 ID 摘要。
+- `domains.csv`：新增 `source_accuracy`、`source_balanced_accuracy`、`source_macro_f1`，
+  以及在线、更新后两组提升指标。
+- `predictions.csv`：新增 `source_prediction`、`source_correct`、`source_confidence`；
+  可用 `domain + position + sample_id` 核对对应样本。
+- `summary.json`：`source_baseline` 为本次目标流基线，`online` / `post_adapt` 各自记录
+  相对提升。整体分数使用本次目标流全部样本累计混淆矩阵计算；域平均则对本次每个
+  域出现次数等权平均。未选中的域不进入任何 TTA 汇总。
+
+### 指标定义
+
+Accuracy、Balanced Accuracy、Macro-F1 均使用 0–100 分数尺度：
+
+| 字段 | 公式 | 例：source 50%，TTA 60% |
+| --- | --- | --- |
+| `accuracy_gain_pp` | TTA Accuracy − Source Accuracy | +10 个百分点 |
+| `accuracy_relative_gain_pct` | 100 × (TTA − Source) / Source | +20% |
+| `error_reduction_pct` | 100 × (TTA Accuracy − Source Accuracy) / (100 − Source Accuracy) | +20% |
+
+Balanced Accuracy 和 Macro-F1 也有对应的 `_gain_pp` 与 `_relative_gain_pct`。
+`domains.csv` 中更新后指标带 `post_adapt_` 前缀；汇总 JSON 中分别放在 `online`
+和 `post_adapt` 下。`domain_average_accuracy_gain_pp` 和
+`domain_average_accuracy_relative_gain_pct` 比较相同域出现次数的等权均值。
+下降时保留负值；基线为 0 时相对提升记为 JSON `null` / CSV 空白，基线准确率为
+100 时错误率降低比例同样为空，避免除零或产生误导值。
+
+仍需保证 source/TTA 的训练域、分类头、预处理和 source 划分一致。新 checkpoint
+额外保存并校验 `source_validation_ratio`，避免源域归一化统计因划分变化而不同；
+旧 checkpoint 缺少该字段时保留兼容，此时需自行保持原训练配置一致。

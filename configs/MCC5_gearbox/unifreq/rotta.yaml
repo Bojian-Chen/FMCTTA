@@ -1,0 +1,19 @@
+# Run: python main.py --config configs/MCC5_gearbox/unifreq/rotta.yaml
+base: base.yaml
+
+protocol:
+  method: rotta
+
+adaptation:
+  adaptation_learning_rate: 0.001
+  adaptation_parameter_scope: layernorm
+  rotta_memory_size: 64
+  rotta_update_frequency: 64
+  rotta_nu: 0.001
+  rotta_bn_alpha: 0.05
+  rotta_lambda_t: 1.0
+  rotta_lambda_u: 1.0
+
+runtime:
+  run_name: mcc5-gearbox-rotta
+

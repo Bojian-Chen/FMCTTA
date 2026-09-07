@@ -1,0 +1,1006 @@
+{
+  "format_version": 1,
+  "dataset": "HUST-Gearbox",
+  "name": "HUST_Gearbox_1024point_custom",
+  "raw_root": "/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "mat_file": "/data1/PHMT/FMCTTA/data/ctta_custom/HUST_Gearbox_1024point_custom.mat",
+  "sampling_frequency_hz": 25600,
+  "window_size_points": 1024,
+  "window_seconds": 0.04,
+  "stride_points": 1024,
+  "stride_seconds": 0.04,
+  "overlap": false,
+  "resampling": "none",
+  "normalization": "none",
+  "channels": [
+    "vibration_1",
+    "vibration_2",
+    "vibration_3"
+  ],
+  "num_channels": 3,
+  "classes": [
+    {
+      "label": 0,
+      "name": "H",
+      "original_label": 0
+    },
+    {
+      "label": 1,
+      "name": "B",
+      "original_label": 1
+    },
+    {
+      "label": 2,
+      "name": "M",
+      "original_label": 2
+    }
+  ],
+  "domains": [
+    {
+      "domain_label": 0,
+      "name": "20Hz_L0",
+      "original_domain": 0,
+      "raw_key": "20_0",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "20_0"
+    },
+    {
+      "domain_label": 1,
+      "name": "20Hz_L1",
+      "original_domain": 1,
+      "raw_key": "20_1",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "20_1"
+    },
+    {
+      "domain_label": 2,
+      "name": "20Hz_L2",
+      "original_domain": 2,
+      "raw_key": "20_2",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "20_2"
+    },
+    {
+      "domain_label": 3,
+      "name": "20Hz_L3",
+      "original_domain": 3,
+      "raw_key": "20_3",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "20_3"
+    },
+    {
+      "domain_label": 4,
+      "name": "20Hz_L4",
+      "original_domain": 4,
+      "raw_key": "20_4",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "20_4"
+    },
+    {
+      "domain_label": 5,
+      "name": "25Hz_L0",
+      "original_domain": 5,
+      "raw_key": "25_0",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "25_0"
+    },
+    {
+      "domain_label": 6,
+      "name": "25Hz_L1",
+      "original_domain": 6,
+      "raw_key": "25_1",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "25_1"
+    },
+    {
+      "domain_label": 7,
+      "name": "25Hz_L2",
+      "original_domain": 7,
+      "raw_key": "25_2",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "25_2"
+    },
+    {
+      "domain_label": 8,
+      "name": "25Hz_L3",
+      "original_domain": 8,
+      "raw_key": "25_3",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "25_3"
+    },
+    {
+      "domain_label": 9,
+      "name": "25Hz_L4",
+      "original_domain": 9,
+      "raw_key": "25_4",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "25_4"
+    },
+    {
+      "domain_label": 10,
+      "name": "30Hz_L0",
+      "original_domain": 10,
+      "raw_key": "30_0",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "30_0"
+    },
+    {
+      "domain_label": 11,
+      "name": "30Hz_L1",
+      "original_domain": 11,
+      "raw_key": "30_1",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "30_1"
+    },
+    {
+      "domain_label": 12,
+      "name": "30Hz_L2",
+      "original_domain": 12,
+      "raw_key": "30_2",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "30_2"
+    },
+    {
+      "domain_label": 13,
+      "name": "30Hz_L3",
+      "original_domain": 13,
+      "raw_key": "30_3",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "30_3"
+    },
+    {
+      "domain_label": 14,
+      "name": "30Hz_L4",
+      "original_domain": 14,
+      "raw_key": "30_4",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "30_4"
+    },
+    {
+      "domain_label": 15,
+      "name": "35Hz_L0",
+      "original_domain": 15,
+      "raw_key": "35_0",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "35_0"
+    },
+    {
+      "domain_label": 16,
+      "name": "35Hz_L1",
+      "original_domain": 16,
+      "raw_key": "35_1",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "35_1"
+    },
+    {
+      "domain_label": 17,
+      "name": "35Hz_L2",
+      "original_domain": 17,
+      "raw_key": "35_2",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "35_2"
+    },
+    {
+      "domain_label": 18,
+      "name": "35Hz_L3",
+      "original_domain": 18,
+      "raw_key": "35_3",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "35_3"
+    },
+    {
+      "domain_label": 19,
+      "name": "35Hz_L4",
+      "original_domain": 19,
+      "raw_key": "35_4",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "35_4"
+    },
+    {
+      "domain_label": 20,
+      "name": "40Hz_L0",
+      "original_domain": 20,
+      "raw_key": "40_0",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "40_0"
+    },
+    {
+      "domain_label": 21,
+      "name": "40Hz_L1",
+      "original_domain": 21,
+      "raw_key": "40_1",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "40_1"
+    },
+    {
+      "domain_label": 22,
+      "name": "40Hz_L2",
+      "original_domain": 22,
+      "raw_key": "40_2",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "40_2"
+    },
+    {
+      "domain_label": 23,
+      "name": "40Hz_L3",
+      "original_domain": 23,
+      "raw_key": "40_3",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "40_3"
+    },
+    {
+      "domain_label": 24,
+      "name": "40Hz_L4",
+      "original_domain": 24,
+      "raw_key": "40_4",
+      "segments_sec": [],
+      "role": "runtime",
+      "recording_group": "40_4"
+    }
+  ],
+  "domain_labels": {
+    "0": "20Hz_L0",
+    "1": "20Hz_L1",
+    "2": "20Hz_L2",
+    "3": "20Hz_L3",
+    "4": "20Hz_L4",
+    "5": "25Hz_L0",
+    "6": "25Hz_L1",
+    "7": "25Hz_L2",
+    "8": "25Hz_L3",
+    "9": "25Hz_L4",
+    "10": "30Hz_L0",
+    "11": "30Hz_L1",
+    "12": "30Hz_L2",
+    "13": "30Hz_L3",
+    "14": "30Hz_L4",
+    "15": "35Hz_L0",
+    "16": "35Hz_L1",
+    "17": "35Hz_L2",
+    "18": "35Hz_L3",
+    "19": "35Hz_L4",
+    "20": "40Hz_L0",
+    "21": "40Hz_L1",
+    "22": "40Hz_L2",
+    "23": "40Hz_L3",
+    "24": "40Hz_L4"
+  },
+  "domain_sequence_defined_at_runtime": true,
+  "available_domain_labels": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+  ],
+  "source_candidate_domains": [],
+  "target_stream_domains": [],
+  "recommended_source_domains": [],
+  "recommended_target_domains": [],
+  "condition_profile": [],
+  "samples_per_class_per_domain": [
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256
+  ],
+  "num_classes": 3,
+  "num_domains": 25,
+  "total_samples": 19200,
+  "storage_order": "domain -> class -> acquisition time",
+  "selection": "uniform",
+  "target_stream_order": "interleaved",
+  "recordings": [
+    "HUST_Gearbox/H_20_0.txt",
+    "HUST_Gearbox/B_20_0.txt",
+    "HUST_Gearbox/M_20_0.txt",
+    "HUST_Gearbox/H_20_1.txt",
+    "HUST_Gearbox/B_20_1.txt",
+    "HUST_Gearbox/M_20_1.txt",
+    "HUST_Gearbox/H_20_2.txt",
+    "HUST_Gearbox/B_20_2.txt",
+    "HUST_Gearbox/M_20_2.txt",
+    "HUST_Gearbox/H_20_3.txt",
+    "HUST_Gearbox/B_20_3.txt",
+    "HUST_Gearbox/M_20_3.txt",
+    "HUST_Gearbox/H_20_4.txt",
+    "HUST_Gearbox/B_20_4.txt",
+    "HUST_Gearbox/M_20_4.txt",
+    "HUST_Gearbox/H_25_0.txt",
+    "HUST_Gearbox/B_25_0.txt",
+    "HUST_Gearbox/M_25_0.txt",
+    "HUST_Gearbox/H_25_1.txt",
+    "HUST_Gearbox/B_25_1.txt",
+    "HUST_Gearbox/M_25_1.txt",
+    "HUST_Gearbox/H_25_2.txt",
+    "HUST_Gearbox/B_25_2.txt",
+    "HUST_Gearbox/M_25_2.txt",
+    "HUST_Gearbox/H_25_3.txt",
+    "HUST_Gearbox/B_25_3.txt",
+    "HUST_Gearbox/M_25_3.txt",
+    "HUST_Gearbox/H_25_4.txt",
+    "HUST_Gearbox/B_25_4.txt",
+    "HUST_Gearbox/M_25_4.txt",
+    "HUST_Gearbox/H_30_0.txt",
+    "HUST_Gearbox/B_30_0.txt",
+    "HUST_Gearbox/M_30_0.txt",
+    "HUST_Gearbox/H_30_1.txt",
+    "HUST_Gearbox/B_30_1.txt",
+    "HUST_Gearbox/M_30_1.txt",
+    "HUST_Gearbox/H_30_2.txt",
+    "HUST_Gearbox/B_30_2.txt",
+    "HUST_Gearbox/M_30_2.txt",
+    "HUST_Gearbox/H_30_3.txt",
+    "HUST_Gearbox/B_30_3.txt",
+    "HUST_Gearbox/M_30_3.txt",
+    "HUST_Gearbox/H_30_4.txt",
+    "HUST_Gearbox/B_30_4.txt",
+    "HUST_Gearbox/M_30_4.txt",
+    "HUST_Gearbox/H_35_0.txt",
+    "HUST_Gearbox/B_35_0.txt",
+    "HUST_Gearbox/M_35_0.txt",
+    "HUST_Gearbox/H_35_1.txt",
+    "HUST_Gearbox/B_35_1.txt",
+    "HUST_Gearbox/M_35_1.txt",
+    "HUST_Gearbox/H_35_2.txt",
+    "HUST_Gearbox/B_35_2.txt",
+    "HUST_Gearbox/M_35_2.txt",
+    "HUST_Gearbox/H_35_3.txt",
+    "HUST_Gearbox/B_35_3.txt",
+    "HUST_Gearbox/M_35_3.txt",
+    "HUST_Gearbox/H_35_4.txt",
+    "HUST_Gearbox/B_35_4.txt",
+    "HUST_Gearbox/M_35_4.txt",
+    "HUST_Gearbox/H_40_0.txt",
+    "HUST_Gearbox/B_40_0.txt",
+    "HUST_Gearbox/M_40_0.txt",
+    "HUST_Gearbox/H_40_1.txt",
+    "HUST_Gearbox/B_40_1.txt",
+    "HUST_Gearbox/M_40_1.txt",
+    "HUST_Gearbox/H_40_2.txt",
+    "HUST_Gearbox/B_40_2.txt",
+    "HUST_Gearbox/M_40_2.txt",
+    "HUST_Gearbox/H_40_3.txt",
+    "HUST_Gearbox/B_40_3.txt",
+    "HUST_Gearbox/M_40_3.txt",
+    "HUST_Gearbox/H_40_4.txt",
+    "HUST_Gearbox/B_40_4.txt",
+    "HUST_Gearbox/M_40_4.txt"
+  ],
+  "combination_counts": [
+    {
+      "domain": "20Hz_L0",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L0",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L0",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L1",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L1",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L1",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L2",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L2",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L2",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L3",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L3",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L3",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L4",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L4",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "20Hz_L4",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L0",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L0",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L0",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L1",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L1",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L1",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L2",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L2",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L2",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L3",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L3",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L3",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L4",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L4",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "25Hz_L4",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L0",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L0",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L0",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L1",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L1",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L1",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L2",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L2",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L2",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L3",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L3",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L3",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L4",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L4",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "30Hz_L4",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L0",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L0",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L0",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L1",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L1",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L1",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L2",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L2",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L2",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L3",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L3",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L3",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L4",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L4",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "35Hz_L4",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L0",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L0",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L0",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L1",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L1",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L1",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L2",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L2",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L2",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L3",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L3",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L3",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L4",
+      "class": "H",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L4",
+      "class": "B",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    },
+    {
+      "domain": "40Hz_L4",
+      "class": "M",
+      "available_non_overlapping_windows": 256,
+      "selected_windows": 256
+    }
+  ],
+  "fmctta_spec": {
+    "name": "HUST_Gearbox_1024point_custom",
+    "filename": "HUST_Gearbox_1024point_custom.mat",
+    "num_classes": 3,
+    "num_domains": 25,
+    "samples_per_class": 256,
+    "samples_per_class_by_domain": [
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256,
+      256
+    ],
+    "default_sequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24
+    ],
+    "description": "Custom native-rate 1024-point HUST-Gearbox CTTA dataset",
+    "num_channels": 3,
+    "default_stream_order": "interleaved",
+    "domain_names": [
+      "20Hz_L0",
+      "20Hz_L1",
+      "20Hz_L2",
+      "20Hz_L3",
+      "20Hz_L4",
+      "25Hz_L0",
+      "25Hz_L1",
+      "25Hz_L2",
+      "25Hz_L3",
+      "25Hz_L4",
+      "30Hz_L0",
+      "30Hz_L1",
+      "30Hz_L2",
+      "30Hz_L3",
+      "30Hz_L4",
+      "35Hz_L0",
+      "35Hz_L1",
+      "35Hz_L2",
+      "35Hz_L3",
+      "35Hz_L4",
+      "40Hz_L0",
+      "40Hz_L1",
+      "40Hz_L2",
+      "40Hz_L3",
+      "40Hz_L4"
+    ],
+    "domain_groups": [
+      "20_0",
+      "20_1",
+      "20_2",
+      "20_3",
+      "20_4",
+      "25_0",
+      "25_1",
+      "25_2",
+      "25_3",
+      "25_4",
+      "30_0",
+      "30_1",
+      "30_2",
+      "30_3",
+      "30_4",
+      "35_0",
+      "35_1",
+      "35_2",
+      "35_3",
+      "35_4",
+      "40_0",
+      "40_1",
+      "40_2",
+      "40_3",
+      "40_4"
+    ]
+  },
+  "storage_format": "matlab_v5"
+}

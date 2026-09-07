@@ -1,0 +1,12 @@
+# Run: python main.py --config configs/SDUST_Gear/unifreq/knn.yaml
+base: base.yaml
+
+protocol:
+  method: knn
+
+adaptation:
+  knn_neighbors: 5
+
+runtime:
+  run_name: sdust-gear-knn
+

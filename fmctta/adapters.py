@@ -28,6 +28,7 @@ GRADIENT_ADAPTATION_METHODS = {
     "continual_mae",
     "rotta",
     "tca",
+    "gold",
     "ttt",
 }
 
@@ -61,7 +62,7 @@ def resolve_adaptation_parameter_scope(method: str, scope: str) -> str:
     if scope == "default":
         return (
             "all"
-            if method in {"cotta", "vida", "continual_mae", "tca"}
+            if method in {"cotta", "vida", "continual_mae", "tca", "gold"}
             else "backbone"
             if method == "ttt"
             else "layernorm"
@@ -837,6 +838,21 @@ def build_adapter(
     tca_augmentation_scale_std: float = 0.05,
     tca_augmentation_mask_probability: float = 0.0,
     tca_augmentation_shift_ratio: float = 0.0,
+    gold_source_prototypes: Optional[torch.Tensor] = None,
+    gold_top_r: int = 64,
+    gold_alpha: float = 0.1,
+    gold_conf_thresh: float = 0.8,
+    gold_update_every: int = 50,
+    gold_adapter_lr_scale: float = 1.0,
+    gold_lambda_ce_trg: float = 1.0,
+    gold_lambda_cont: float = 1.0,
+    gold_temperature: float = 0.1,
+    gold_projection_dim: int = 128,
+    gold_teacher_momentum: float = 0.999,
+    gold_augmentation_noise_std: float = 0.005,
+    gold_augmentation_scale_std: float = 0.05,
+    gold_augmentation_mask_probability: float = 0.0,
+    gold_augmentation_shift_ratio: float = 0.0,
     ttt_auxiliary_head: Optional[nn.Module] = None,
     sar_rho: float = 0.05,
     sar_entropy_margin: Optional[float] = None,
@@ -950,6 +966,35 @@ def build_adapter(
             weight_decay,
             steps,
             scope,
+        )
+    if method == "gold":
+        from .gold import GOLDAdapter
+
+        if gold_source_prototypes is None:
+            raise ValueError("GOLD requires class prototypes from source training data")
+        return GOLDAdapter(
+            model,
+            device,
+            learning_rate,
+            num_classes,
+            gold_source_prototypes,
+            steps=steps,
+            weight_decay=weight_decay,
+            parameter_scope=scope,
+            top_r=gold_top_r,
+            alpha=gold_alpha,
+            conf_thresh=gold_conf_thresh,
+            update_every=gold_update_every,
+            adapter_lr_scale=gold_adapter_lr_scale,
+            lambda_ce_trg=gold_lambda_ce_trg,
+            lambda_cont=gold_lambda_cont,
+            temperature=gold_temperature,
+            projection_dim=gold_projection_dim,
+            teacher_momentum=gold_teacher_momentum,
+            augmentation_noise_std=gold_augmentation_noise_std,
+            augmentation_scale_std=gold_augmentation_scale_std,
+            augmentation_mask_probability=gold_augmentation_mask_probability,
+            augmentation_shift_ratio=gold_augmentation_shift_ratio,
         )
     if method == "tca":
         from .tca import TCAAdapter

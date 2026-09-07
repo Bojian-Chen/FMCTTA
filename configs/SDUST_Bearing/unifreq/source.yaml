@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/SDUST_Bearing/unifreq/source.yaml
+base:
+  - base.yaml
+  - ../../methods/source.yaml
+
+runtime:
+  run_name: sdust-bearing-source

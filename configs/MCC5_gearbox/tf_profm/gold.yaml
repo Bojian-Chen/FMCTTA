@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/MCC5_gearbox/tf_profm/gold.yaml
+base:
+  - base.yaml
+  - ../../methods/gold.yaml
+
+runtime:
+  run_name: mcc5-gearbox-tf-profm-gold

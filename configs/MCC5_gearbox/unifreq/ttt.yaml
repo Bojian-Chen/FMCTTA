@@ -1,0 +1,16 @@
+# Run: python main.py --config configs/MCC5_gearbox/unifreq/ttt.yaml
+base: base.yaml
+
+protocol:
+  method: ttt
+
+model:
+  source_checkpoint: ""
+
+adaptation:
+  adaptation_parameter_scope: backbone
+  ttt_source_auxiliary_weight: 1.0
+
+runtime:
+  run_name: mcc5-gearbox-ttt
+

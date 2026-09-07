@@ -1,0 +1,12 @@
+# Run: python main.py --config configs/SDUST_Gear/unifreq/tent.yaml
+base: base.yaml
+
+protocol:
+  method: tent
+
+adaptation:
+  adaptation_parameter_scope: layernorm
+
+runtime:
+  run_name: sdust-gear-tent
+

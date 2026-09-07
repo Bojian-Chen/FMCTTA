@@ -19,7 +19,7 @@ the model between domains.
 
 - Loads UniFreq from Hugging Face and UniFault/TF-ProFM from PHMFD pretraining
   checkpoints; no new pretraining run is required.
-- Implements Source-only, source-reference kNN, TENT, NOTE, EATA, SAR, CoTTA, ViDA, Continual-MAE, RoTTA, TCA, and classic TTT for Transformer-based
+- Implements Source-only, source-reference kNN, TENT, NOTE, EATA, SAR, CoTTA, ViDA, Continual-MAE, RoTTA, TCA, GOLD, and classic TTT for Transformer-based
   vibration encoders.
 - Keeps target labels outside every adapter. Labels are read only by the
   evaluation meters after prediction.
@@ -73,6 +73,7 @@ Face and are downloaded on demand. Migrated UniFault/TF-ProFM backbones are in
 | `continual_mae` | Frequency-bin distribution-aware masking + reconstruction + teacher consistency | All base parameters + MAE auxiliary parameters |
 | `rotta` | CSTU memory and timeliness-weighted EMA consistency | LayerNorm affine parameters |
 | `tca` | Persistent class topology, consistency, and view alignment | All parameters |
+| `gold` | AGOP subspace scaling, teacher self-training, and source-prototype contrast | All parameters + scaling vector and projector |
 | `ttt` | Four-way circular-shift prediction before task inference | Foundation backbone + auxiliary head |
 
 All methods support all three backbones except `continual_mae`, whose current
@@ -208,19 +209,19 @@ samples from every class; domain 1 therefore uses 40 distinct samples per
 class, domain 2 uses 40, and domain 3 uses 60. For different allocations by
 occurrence, use for example `--target_samples_per_class '20;10;15;20;10;15;20'`.
 
-Complete YAML experiments are organized by dataset. Each dataset root contains
-the UniFreq matrix, while its `unifault/` and `tf_profm/` subdirectories contain
-the compatible UniFault-small and TF-ProFM matrices. Shared method overlays are
+Complete YAML experiments are organized by dataset. Every dataset directory has
+`unifreq/`, `unifault/`, and `tf_profm/` subdirectories for the UniFreq,
+UniFault-small, and TF-ProFM matrices. Shared method overlays are
 kept in `configs/methods/`; ordered YAML `base` lists compose a dataset/model base
 with an algorithm overlay. The UniFreq matrix includes Continual-MAE; the two
 PHMFD matrices include Source-only, kNN, TENT, NOTE, EATA, SAR, CoTTA, ViDA,
-RoTTA, TCA, and TTT. See [`configs/README_zh.md`](configs/README_zh.md)
+RoTTA, TCA, GOLD, and TTT. See [`configs/README_zh.md`](configs/README_zh.md)
 for the layout, run order, and parameter reference. For example, train the PU
 source model before running TENT:
 
 ```bash
-python main.py --config configs/PU/source.yaml
-python main.py --config configs/PU/tent.yaml
+python main.py --config configs/PU/unifreq/source.yaml
+python main.py --config configs/PU/unifreq/tent.yaml
 
 python main.py --config configs/PU/unifault/source.yaml
 python main.py --config configs/PU/unifault/tent.yaml
@@ -234,7 +235,7 @@ Command-line options override YAML values.
 ### 2. Run continual test-time adaptation
 
 ```bash
-python main.py --config configs/PU/tent.yaml
+python main.py --config configs/PU/unifreq/tent.yaml
 ```
 
 Replace `tent` with `knn`, `note`, `eata`, `sar`, `cotta`, `vida`, or `continual_mae`.
@@ -316,3 +317,5 @@ OCTTA implementation.
 
 This project is released under the [MIT License](LICENSE).
 # FMCTTA
+
+GOLD signal adaptation and protocol differences are documented in [docs/GOLD_ZH.md](docs/GOLD_ZH.md).

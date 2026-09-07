@@ -197,6 +197,12 @@ def load_checkpoint(
     expected_metadata: Mapping[str, object],
     extra_modules: Optional[Mapping[str, nn.Module]] = None,
 ) -> Dict[str, object]:
+    directory = Path(directory)
+    # Accept either the checkpoint directory or its experiment run directory.
+    if not (directory / "source_model.safetensors").is_file():
+        nested = directory / "source_checkpoint"
+        if nested.is_dir():
+            directory = nested
     weights_path = directory / "source_model.safetensors"
     metadata_path = directory / "source_model.json"
     if not weights_path.is_file() or not metadata_path.is_file():

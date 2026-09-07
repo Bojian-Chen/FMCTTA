@@ -1,15 +1,79 @@
-# MCC5_motor + TF-ProFM; inherits the dataset stream and training protocol.
-base: ../base.yaml
+# MCC5-Motor TF-ProFM self-contained experiment profile. Run from the
+# repository root so relative manifest and checkpoint paths resolve.
+
+protocol:
+  # Without source_domains, domain 0 is the labeled source and the remaining
+  # entries are ordered online targets. Target 2 is intentionally excluded
+  # because domains 0/1/2 share one raw recording group.
+  domains: [0, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32]
+  # Ordering inside each target domain: shuffled randomly mixes the selected
+  # samples; class_block groups classes; interleaved cycles through classes.
+  stream_order: interleaved # ["shuffled", "class_block", "interleaved"]
+  # Number of consecutive target samples processed per online update.
+  stream_batch_size: 24
+  # Controls source splitting, sample selection/order, and model randomness.
+  seed: 2025
 
 data:
-  # PHMFD preprocessing is applied by the model wrapper; avoid double normalization.
-  normalization: none
+  dataset_manifest: data/ctta_custom/MCC5_Motor_1024point_custom.json
+  # dataset/data_root are omitted because the manifest supplies both.
+  # Keep dataset-level normalization off; model_input_normalization below
+  # applies the PHMFD model-specific per-sample preprocessing.
+  normalization: none # ["zscore", "minmax", "none"]
+  # Per-class fraction held out for source validation and best-epoch selection.
+  source_validation_ratio: 0.2
+  # true disables known label-layout repairs and fails on malformed data.
+  strict_data: false # [false, true]
+  # Each target domain occurs once; do not reuse samples across occurrences.
+  allow_repeated_target_samples: false # [false, true]
+  # Optional debug caps. null disables the cap; the class-balanced selectors
+  # below are mutually exclusive with their corresponding max_* option.
+  max_source_per_class: null
+  max_target_per_domain: null
+  # Empty means use every available sample from each selected source/target
+  # class. A scalar applies to every class; a list can allocate per class.
+  source_samples_per_class: "" # e.g. 100 or a 24-value per-class list
+  target_samples_per_class: "" # e.g. 100 or a nested 24-value per-class list
 
 model:
-  foundation_model: tf_profm
-  foundation_model_size: auto
+  # Foundation-model family and architecture preset.
+  foundation_model: tf_profm # ["unifreq", "unifault", "tf_profm"]
+  foundation_model_size: auto # ["auto", "tiny", "small", "base"]
+  # auto loads the bundled PHMFD checkpoint; alternatively use an explicit
+  # checkpoint file/run directory. Empty starts from random backbone weights.
   pretrained_checkpoint: auto
+  # 0 infers the fixed input length from the checkpoint.
   model_input_length: 0
-  model_input_normalization: auto
+  # auto reproduces PHMFD preprocessing: UniFault min-max, TF-ProFM z-score.
+  model_input_normalization: auto # ["auto", "none", "sample_zscore", "sample_minmax"]
+  # Non-UniFreq backbones expose one feature path and therefore require fused.
   feature_branch: fused
+  # Target methods load the checkpoint produced by this model's source.yaml.
   source_checkpoint: outputs/MCC5_Motor_1024point_custom/source/mcc5-motor-tf-profm-source-seed2025/source_checkpoint
+  classifier: linear # ["mlp", "linear", "cosine"]
+  # Dropout probability used by classifiers that contain dropout layers.
+  classifier_dropout: 0.0
+  # Batch size for source validation and offline target diagnostics.
+  eval_batch_size: 128
+  # Source-training settings shared by source.yaml and target methods.
+  source_epochs: 30
+  source_batch_size: 64
+  source_learning_rate: 0.01
+  source_backbone_lr_scale: 0.01
+  source_weight_decay: 0.0001
+  source_gradient_clip: 1.0
+
+adaptation:
+  # Shared defaults; method YAML files may override any of these values.
+  adaptation_learning_rate: 0.0025
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+  adaptation_parameter_scope: default # ["default", "layernorm", "classifier", "backbone", "all"]
+
+runtime:
+  # auto selects CUDA when available, otherwise CPU; cpu/cuda/cuda:0 are valid.
+  device: auto
+  # DataLoader worker processes; 0 loads data in the main process.
+  workers: 0
+  # Results are written under output_dir/dataset/method/run_name-seedN.
+  output_dir: outputs

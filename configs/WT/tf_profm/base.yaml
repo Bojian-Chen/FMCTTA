@@ -1,15 +1,88 @@
-# WT + TF-ProFM; inherits the dataset stream and training protocol.
-base: ../base.yaml
+# WT TF-ProFM self-contained experiment profile. Run from the
+# repository root so relative manifest and checkpoint paths resolve.
+
+protocol:
+  # Without source_domains, domain 0 (20 Hz) is the labeled source; domains
+  # 1--7 are ordered targets at 25, 30, 35, 40, 45, 50, and 55 Hz.
+  domains: [0, 1, 2, 3, 4, 5, 6, 7]
+  # Ordering inside each target domain: shuffled randomly mixes the selected
+  # samples; class_block groups classes; interleaved cycles through classes.
+  stream_order: shuffled # ["shuffled", "class_block", "interleaved"]
+  # Number of consecutive target samples processed per online update.
+  stream_batch_size: 16
+  # Controls source splitting, sample selection/order, and model randomness.
+  seed: 2025
 
 data:
-  # PHMFD preprocessing is applied by the model wrapper; avoid double normalization.
-  normalization: none
+  dataset_manifest: data/ctta_custom/WT_1024point_custom.json
+  # dataset/data_root are omitted because the manifest supplies both.
+  # Keep dataset-level normalization off; model_input_normalization below
+  # applies the PHMFD model-specific per-sample preprocessing.
+  normalization: none # ["zscore", "minmax", "none"]
+  # Per-class fraction held out for source validation and best-epoch selection.
+  source_validation_ratio: 0.2
+  # true disables known label-layout repairs and fails on malformed data.
+  strict_data: false # [false, true]
+  # Optional debug caps. null disables the cap; the class-balanced selectors
+  # below are mutually exclusive with their corresponding max_* option.
+  max_source_per_class: null
+  max_target_per_domain: null
+  # No target domain repeats in the default WT stream; keep no-reuse behavior explicit.
+  allow_repeated_target_samples: false # [false, true]
+  # The 1024-point manifest provides 900 samples per class/domain. This
+  # protocol deliberately selects 200; source selection must match checkpoints.
+  source_samples_per_class: 200
+  target_samples_per_class: 200
+  # Per-class example (5 values, in manifest class order); replace the scalar above with this form when classes need different source allocations:
+  # source_samples_per_class: [200, 180, 160, 140, 120]
+  # Use a nested list for target per-class allocation; one inner list is reused for every target-domain occurrence, while the outer list prevents interpreting values as counts for different target positions.
+  # target_samples_per_class: [[200, 180, 160, 140, 120]]
+  # Advanced: `;` separates WT's seven target-stream positions (domains 1--7), while `,` separates its five classes; a scalar entry applies to all classes in that target position:
+  # target_samples_per_class: "200;180;160;140;120;100;80"
+  # Per-position AND per-class allocation (uncomment as a folded YAML string):
+  # target_samples_per_class: >-
+  #   200,180,160,140,120;180,160,140,120,100;160,140,120,100,80;
+  #   140,120,100,80,60;120,100,80,60,40;100,80,60,40,20;80,60,40,20,10
 
 model:
-  foundation_model: tf_profm
-  foundation_model_size: auto
+  # Foundation-model family and architecture preset.
+  foundation_model: tf_profm # ["unifreq", "unifault", "tf_profm"]
+  foundation_model_size: auto # ["auto", "tiny", "small", "base"]
+  # auto loads the bundled PHMFD checkpoint; alternatively use an explicit
+  # checkpoint file/run directory. Empty starts from random backbone weights.
   pretrained_checkpoint: auto
+  # 0 infers the fixed input length from the checkpoint.
   model_input_length: 0
-  model_input_normalization: auto
+  # auto reproduces PHMFD preprocessing: UniFault min-max, TF-ProFM z-score.
+  model_input_normalization: auto # ["auto", "none", "sample_zscore", "sample_minmax"]
+  # Non-UniFreq backbones expose one feature path and therefore require fused.
   feature_branch: fused
+  # Target methods load the checkpoint produced by this model's source.yaml.
   source_checkpoint: outputs/WT_1024point_custom/source/wt-tf-profm-source-seed2025/source_checkpoint
+  classifier: mlp # ["mlp", "linear", "cosine"]
+  # Dropout probability used by classifiers that contain dropout layers.
+  classifier_dropout: 0.0
+  # Batch size for source validation and offline target diagnostics.
+  eval_batch_size: 128
+  # Source-training settings shared by source.yaml and target methods.
+  source_epochs: 30
+  source_batch_size: 64
+  source_learning_rate: 0.01
+  source_backbone_lr_scale: 0.01
+  source_weight_decay: 0.0001
+  source_gradient_clip: 1.0
+
+adaptation:
+  # Shared defaults; method YAML files may override any of these values.
+  adaptation_learning_rate: 0.001
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+  adaptation_parameter_scope: default # ["default", "layernorm", "classifier", "backbone", "all"]
+
+runtime:
+  # auto selects CUDA when available, otherwise CPU; cpu/cuda/cuda:0 are valid.
+  device: auto
+  # DataLoader worker processes; 0 loads data in the main process.
+  workers: 0
+  # Results are written under output_dir/dataset/method/run_name-seedN.
+  output_dir: outputs

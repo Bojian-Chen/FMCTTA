@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/SDUST_Bearing/unifault/gold.yaml
+base:
+  - base.yaml
+  - ../../methods/gold.yaml
+
+runtime:
+  run_name: sdust-bearing-unifault-small-gold

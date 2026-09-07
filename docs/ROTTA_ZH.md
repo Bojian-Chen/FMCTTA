@@ -45,16 +45,16 @@ teacher = (1 - nu) * teacher + nu * student
 
 四个数据配置均提供可直接运行的 `rotta.yaml`：
 
-- `configs/PU/rotta.yaml`
-- `configs/WT/rotta.yaml`
-- `configs/HUST_Gearbox/rotta.yaml`
-- `configs/MCC5_motor/rotta.yaml`
+- `configs/PU/unifreq/rotta.yaml`
+- `configs/WT/unifreq/rotta.yaml`
+- `configs/HUST_Gearbox/unifreq/rotta.yaml`
+- `configs/MCC5_motor/unifreq/rotta.yaml`
 
 先运行同目录 `source.yaml`，再运行 RoTTA。例如：
 
 ```bash
-python main.py --config configs/PU/source.yaml
-python main.py --config configs/PU/rotta.yaml
+python main.py --config configs/PU/unifreq/source.yaml
+python main.py --config configs/PU/unifreq/rotta.yaml
 ```
 
 | 参数 | 默认值 | 含义 |

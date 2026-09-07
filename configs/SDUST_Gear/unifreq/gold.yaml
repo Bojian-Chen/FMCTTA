@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/SDUST_Gear/unifreq/gold.yaml
+base:
+  - base.yaml
+  - ../../methods/gold.yaml
+
+runtime:
+  run_name: sdust-gear-gold

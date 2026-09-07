@@ -1,6 +1,7 @@
 """End-to-end source training and continual test-time adaptation runner."""
 
 import csv
+import hashlib
 import json
 import random
 from datetime import datetime
@@ -26,7 +27,7 @@ from .config import (
     resolve_target_domains,
 )
 from .data import FaultDataModule
-from .metrics import ClassificationMeter
+from .metrics import ClassificationMeter, relative_improvement
 from .model import build_model
 from .knn import build_reference_bank
 from .source import (
@@ -94,7 +95,10 @@ def _prediction_rows(
     domain: int,
     domain_name: str,
     batch: int,
+    source_outputs: torch.Tensor,
 ) -> List[Dict[str, Any]]:
+    source_probabilities = source_outputs.detach().cpu().softmax(dim=1)
+    source_predictions = source_probabilities.argmax(dim=1)
     online_probabilities = online_outputs.detach().cpu().softmax(dim=1)
     post_probabilities = post_adapt_outputs.detach().cpu().softmax(dim=1)
     online_predictions = online_probabilities.argmax(dim=1)
@@ -108,6 +112,9 @@ def _prediction_rows(
             "batch": batch,
             "sample_id": int(sample_ids[offset].item()),
             "target": int(labels[offset].item()),
+            "source_prediction": int(source_predictions[offset].item()),
+            "source_correct": int(source_predictions[offset].eq(labels[offset]).item()),
+            "source_confidence": float(source_probabilities[offset].amax().item()),
             "online_prediction": int(online_predictions[offset].item()),
             "post_adapt_prediction": int(post_predictions[offset].item()),
             "online_correct": int(
@@ -140,6 +147,57 @@ def evaluate_adapter(
     return meter.compute()
 
 
+def resolve_source_eval_domains(value: str, spec, target_domains):
+    if value == "all":
+        return tuple(range(spec.num_domains))
+    if value == "targets":
+        return tuple(dict.fromkeys(target_domains))
+    domains = parse_domains(value)
+    if len(set(domains)) != len(domains):
+        raise ValueError("source_eval_domains cannot contain duplicates")
+    if any(domain < 0 or domain >= spec.num_domains for domain in domains):
+        raise ValueError("source_eval_domains contains an invalid domain ID")
+    return domains
+
+
+def _sample_digest(sample_ids: torch.Tensor) -> str:
+    return hashlib.sha256(
+        sample_ids.detach().cpu().numpy().astype("<i8").tobytes()
+    ).hexdigest()
+
+
+def evaluate_source_domains(model, data, domains, args, device):
+    """Run diagnostics without advancing the adaptation RNG or target stream."""
+    rows = []
+    cuda_devices = (
+        [device.index if device.index is not None else torch.cuda.current_device()]
+        if device.type == "cuda" else []
+    )
+    with torch.random.fork_rng(devices=cuda_devices):
+        for domain in domains:
+            dataset = data.source_evaluation_dataset(domain)
+            loader = data.loader(
+                dataset, args.eval_batch_size, shuffle=False,
+                workers=args.workers, device=device,
+            )
+            metrics = evaluate_supervised(model, loader, device, data.spec.num_classes)
+            row = {
+                "domain": domain,
+                "domain_name": data.spec.domain_name(domain),
+                "evaluation_split": (
+                    "source_validation" if domain in data.source_domains else "full_domain"
+                ),
+                "sample_ids_sha256": _sample_digest(dataset.sample_ids),
+                **metrics,
+            }
+            rows.append(row)
+            print(
+                f"[source evaluation] domain={domain} "
+                f"samples={int(metrics['samples'])} accuracy={metrics['accuracy']:.2f}%"
+            )
+    return rows
+
+
 def run_experiment(args) -> Dict[str, Any]:
     set_seed(args.seed)
     device = resolve_device(args.device)
@@ -156,6 +214,9 @@ def run_experiment(args) -> Dict[str, Any]:
         sequence = resolve_sequence(spec, args.domains)
         source_domains, target_domains = (sequence[0],), sequence[1:]
     source_domain = source_domains[0]
+    source_eval_domains = resolve_source_eval_domains(
+        args.source_eval_domains, spec, target_domains
+    )
     source_samples_per_class = parse_source_samples_per_class(
         args.source_samples_per_class, spec.num_classes
     )
@@ -269,6 +330,7 @@ def run_experiment(args) -> Dict[str, Any]:
             "source_samples_per_class"
         ],
         "normalization": args.normalization,
+        "source_validation_ratio": args.source_validation_ratio,
         "input_channels": spec.num_channels,
         "seed": args.seed,
     }
@@ -335,6 +397,26 @@ def run_experiment(args) -> Dict[str, Any]:
         f"{source_model_validation['accuracy']:.2f}%"
     )
 
+    source_evaluation = None
+    if args.method.lower() == "source" or not args.source_checkpoint:
+        source_evaluation_rows = evaluate_source_domains(
+            model, data, source_eval_domains, args, device
+        )
+        source_evaluation = {
+            "dataset": spec.name,
+            "dataset_file": str(spec.path(Path(args.data_root)).resolve()),
+            "source_checkpoint": args.source_checkpoint or str(run_dir / "source_checkpoint"),
+            "checkpoint_metadata": checkpoint_metadata,
+            "normalization": args.normalization,
+            "source_validation_ratio": args.source_validation_ratio,
+            "domains": {str(row["domain"]): row for row in source_evaluation_rows},
+            "definition": "Post-training frozen model; source validation and full non-source domains",
+        }
+        _write_json(run_dir / "source_evaluation.json", source_evaluation)
+        _write_csv(run_dir / "source_evaluation.csv", source_evaluation_rows)
+        if not args.source_checkpoint:
+            _write_json(run_dir / "source_checkpoint" / "source_evaluation.json", source_evaluation)
+
     fisher: Optional[Dict[str, torch.Tensor]] = None
     if args.method.lower() == "eata" and args.eata_fisher_alpha > 0:
         fisher = compute_fisher(
@@ -357,6 +439,18 @@ def run_experiment(args) -> Dict[str, Any]:
             "Built kNN source-train reference bank: "
             f"{knn_reference_features.shape[0]} samples, "
             f"{knn_reference_features.shape[1]} features"
+        )
+
+    gold_source_prototypes = None
+    if args.method.lower() == "gold":
+        from .gold import build_source_prototypes
+
+        gold_source_prototypes = build_source_prototypes(
+            model, source_reference_loader, device, spec.num_classes
+        )
+        print(
+            "Built GOLD source-train prototypes: "
+            f"{tuple(gold_source_prototypes.shape)}"
         )
 
     adapter = build_adapter(
@@ -387,6 +481,21 @@ def run_experiment(args) -> Dict[str, Any]:
             args.rotta_augmentation_mask_probability
         ),
         rotta_augmentation_shift_ratio=args.rotta_augmentation_shift_ratio,
+        gold_source_prototypes=gold_source_prototypes,
+        gold_top_r=args.gold_top_r,
+        gold_alpha=args.gold_alpha,
+        gold_conf_thresh=args.gold_conf_thresh,
+        gold_update_every=args.gold_update_every,
+        gold_adapter_lr_scale=args.gold_adapter_lr_scale,
+        gold_lambda_ce_trg=args.gold_lambda_ce_trg,
+        gold_lambda_cont=args.gold_lambda_cont,
+        gold_temperature=args.gold_temperature,
+        gold_projection_dim=args.gold_projection_dim,
+        gold_teacher_momentum=args.gold_teacher_momentum,
+        gold_augmentation_noise_std=args.gold_augmentation_noise_std,
+        gold_augmentation_scale_std=args.gold_augmentation_scale_std,
+        gold_augmentation_mask_probability=args.gold_augmentation_mask_probability,
+        gold_augmentation_shift_ratio=args.gold_augmentation_shift_ratio,
         tca_teacher_momentum=args.tca_teacher_momentum,
         tca_centroid_momentum=args.tca_centroid_momentum,
         tca_topology_weight_momentum=args.tca_topology_weight_momentum,
@@ -449,9 +558,18 @@ def run_experiment(args) -> Dict[str, Any]:
         knn_reference_features=knn_reference_features,
         knn_reference_labels=knn_reference_labels,
     )
+    if args.method.lower() == "gold" and args.gold_warmup_steps > 0:
+        adapter.warmup(source_train_loader, args.gold_warmup_steps)
+
+    # Every adapter owns a copy. Keep the original checkpoint model as the
+    # frozen baseline, including for methods that warm up their own copy.
+    model.eval()
+    model.requires_grad_(False)
+
     source_before = (
         evaluate_adapter(adapter, source_validation_loader, device, spec.num_classes)
         if args.method.lower() == "knn"
+        or (args.method.lower() == "gold" and args.gold_warmup_steps > 0)
         else source_model_validation
     )
     if args.method.lower() == "knn":
@@ -462,12 +580,15 @@ def run_experiment(args) -> Dict[str, Any]:
 
     overall = ClassificationMeter(spec.num_classes)
     post_adapt_overall = ClassificationMeter(spec.num_classes)
+    source_overall = ClassificationMeter(spec.num_classes)
+    source_baseline_rows: List[Dict[str, Any]] = []
     domain_rows: List[Dict[str, Any]] = []
     prediction_rows: List[Dict[str, Any]] = []
     for position, domain in enumerate(target_domains, start=1):
         domain_name = spec.domain_name(domain)
+        target_dataset = data.target_dataset(domain, stream_position=position - 1)
         target_loader = data.loader(
-            data.target_dataset(domain, stream_position=position - 1),
+            target_dataset,
             args.stream_batch_size,
             shuffle=False,
             workers=args.workers,
@@ -475,11 +596,17 @@ def run_experiment(args) -> Dict[str, Any]:
         )
         domain_meter = ClassificationMeter(spec.num_classes)
         post_adapt_meter = ClassificationMeter(spec.num_classes)
+        source_meter = ClassificationMeter(spec.num_classes)
         for batch, (inputs, labels, sample_ids) in enumerate(target_loader):
             # Protocol boundary: target labels are used by meters only.
             device_inputs = inputs.to(device)
             outputs = adapter(device_inputs)
             post_outputs = adapter.predict(device_inputs)
+            with torch.no_grad():
+                source_outputs = (
+                    outputs if args.method.lower() == "source" else model(device_inputs)
+                )
+            source_meter.update(source_outputs, labels)
             domain_meter.update(outputs, labels)
             post_adapt_meter.update(post_outputs, labels)
             prediction_rows.extend(
@@ -492,13 +619,23 @@ def run_experiment(args) -> Dict[str, Any]:
                     domain,
                     domain_name,
                     batch,
+                    source_outputs,
                 )
             )
 
         overall.merge(domain_meter)
         post_adapt_overall.merge(post_adapt_meter)
+        source_overall.merge(source_meter)
         metrics = domain_meter.compute()
         post_metrics = post_adapt_meter.compute()
+        source_metrics = source_meter.compute()
+        source_baseline_rows.append({
+            "position": position,
+            "domain": domain,
+            "domain_name": domain_name,
+            "sample_ids_sha256": _sample_digest(target_dataset.sample_ids),
+            **source_metrics,
+        })
         retention = evaluate_adapter(
             adapter, source_validation_loader, device, spec.num_classes
         )
@@ -507,6 +644,12 @@ def run_experiment(args) -> Dict[str, Any]:
             "domain": domain,
             "domain_name": domain_name,
             **metrics,
+            **{f"source_{key}": value for key, value in source_metrics.items()},
+            **relative_improvement(metrics, source_metrics),
+            **{
+                f"post_adapt_{key}": value
+                for key, value in relative_improvement(post_metrics, source_metrics).items()
+            },
             **{
                 f"post_adapt_{key}": value
                 for key, value in post_metrics.items()
@@ -522,12 +665,16 @@ def run_experiment(args) -> Dict[str, Any]:
             f"[target {position:02d}/{len(target_domains):02d}] "
             f"domain={domain} samples={int(metrics['samples'])} "
             f"online_acc={metrics['accuracy']:.2f}% "
+            f"source_acc={source_metrics['accuracy']:.2f}% "
+            f"gain={metrics['accuracy'] - source_metrics['accuracy']:+.2f}pp "
             f"post_adapt_acc={post_metrics['accuracy']:.2f}% "
             f"source_retention={retention['accuracy']:.2f}%"
         )
 
     online_metrics = overall.compute()
     post_metrics = post_adapt_overall.compute()
+    source_metrics = source_overall.compute()
+    source_domain_average = float(np.mean([row["accuracy"] for row in source_baseline_rows]))
     domain_average = float(np.mean([row["accuracy"] for row in domain_rows]))
     post_domain_average = float(
         np.mean([row["post_adapt_accuracy"] for row in domain_rows])
@@ -579,9 +726,24 @@ def run_experiment(args) -> Dict[str, Any]:
             "validation": source_before,
             "classifier_validation": source_model_validation,
             "checkpoint_metadata": checkpoint_metadata,
+            "evaluation": source_evaluation,
+        },
+        "source_baseline": {
+            **source_metrics,
+            "domain_average_accuracy": source_domain_average,
+            "definition": "Frozen source checkpoint evaluated on exactly the current target samples",
+            "matching_keys": ["domain", "position", "sample_id"],
+            "source_checkpoint": args.source_checkpoint or str(run_dir / "source_checkpoint"),
+            "domains": source_baseline_rows,
         },
         "online": {
             **online_metrics,
+            **relative_improvement(online_metrics, source_metrics),
+            "domain_average_accuracy_gain_pp": domain_average - source_domain_average,
+            "domain_average_accuracy_relative_gain_pct": (
+                100.0 * (domain_average - source_domain_average) / source_domain_average
+                if source_domain_average else None
+            ),
             "domain_average_accuracy": domain_average,
             "final_source_retention_accuracy": final_retention,
             "final_source_forgetting": (
@@ -590,6 +752,12 @@ def run_experiment(args) -> Dict[str, Any]:
         },
         "post_adapt": {
             **post_metrics,
+            **relative_improvement(post_metrics, source_metrics),
+            "domain_average_accuracy_gain_pp": post_domain_average - source_domain_average,
+            "domain_average_accuracy_relative_gain_pct": (
+                100.0 * (post_domain_average - source_domain_average) / source_domain_average
+                if source_domain_average else None
+            ),
             "domain_average_accuracy": post_domain_average,
             "definition": (
                 "Same-batch prediction after adaptation, without another update"
@@ -606,6 +774,8 @@ def run_experiment(args) -> Dict[str, Any]:
     _write_json(run_dir / "config.json", public_args)
     _write_json(run_dir / "source_history.json", {"epochs": source_history})
     _write_json(run_dir / "summary.json", summary)
+    _write_json(run_dir / "source_baseline.json", summary["source_baseline"])
+    _write_csv(run_dir / "source_baseline.csv", source_baseline_rows)
     _write_csv(run_dir / "domains.csv", domain_rows)
     _write_csv(run_dir / "predictions.csv", prediction_rows)
     print(

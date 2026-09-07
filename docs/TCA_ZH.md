@@ -79,10 +79,10 @@ target 标签只在 adapter 返回预测后交给指标模块，不参与伪标�
 四套可直接继承对应 source 配置的文件：
 
 ```bash
-python main.py --config configs/PU/tca.yaml
-python main.py --config configs/WT/tca.yaml
-python main.py --config configs/HUST_Gearbox/tca.yaml
-python main.py --config configs/MCC5_motor/tca.yaml
+python main.py --config configs/PU/unifreq/tca.yaml
+python main.py --config configs/WT/unifreq/tca.yaml
+python main.py --config configs/HUST_Gearbox/unifreq/tca.yaml
+python main.py --config configs/MCC5_motor/unifreq/tca.yaml
 ```
 
 核心默认值：

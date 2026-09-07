@@ -1,0 +1,25 @@
+# GOLD classification port; see docs/GOLD_ZH.md for protocol differences.
+protocol:
+  method: gold
+
+adaptation:
+  adaptation_learning_rate: 0.001
+  adaptation_parameter_scope: all
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+  gold_top_r: 64
+  gold_alpha: 0.1
+  gold_conf_thresh: 0.8
+  gold_update_every: 50
+  gold_adapter_lr_scale: 1.0
+  gold_lambda_ce_trg: 1.0
+  gold_lambda_cont: 1.0
+  gold_temperature: 0.1
+  gold_projection_dim: 128
+  gold_teacher_momentum: 0.999
+  gold_augmentation_noise_std: 0.005
+  gold_augmentation_scale_std: 0.05
+  gold_augmentation_mask_probability: 0.0
+  gold_augmentation_shift_ratio: 0.0
+  # Reuse the common source checkpoint by default; optional source-only warm-up.
+  gold_warmup_steps: 0

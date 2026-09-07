@@ -82,13 +82,13 @@ metadata.ttt_source_auxiliary_weight
 第一次运行必须联合训练并生成 TTT checkpoint。例如 PU：
 
 ```bash
-python main.py --config configs/PU/ttt.yaml
+python main.py --config configs/PU/unifreq/ttt.yaml
 ```
 
 后续复现必须加载上一步产生的 TTT checkpoint：
 
 ```bash
-python main.py --config configs/PU/ttt.yaml \
+python main.py --config configs/PU/unifreq/ttt.yaml \
   --source_checkpoint outputs/PU_0p1s_custom/ttt/pu-ttt-seed2025/source_checkpoint
 ```
 

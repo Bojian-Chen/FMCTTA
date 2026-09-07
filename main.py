@@ -57,6 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
             "continual_mae",
             "rotta",
             "tca",
+            "gold",
             "ttt",
         ],
         default="source",
@@ -68,6 +69,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     protocol.add_argument("--stream_batch_size", type=int, default=16)
     protocol.add_argument("--seed", type=int, default=2025)
+    protocol.add_argument(
+        "--source_eval_domains",
+        default="all",
+        help=(
+            "Source-model diagnostics after training (or in source mode): "
+            "all, targets, or comma-separated domain IDs. Independent of the "
+            "TTA stream; labeled source domains use held-out validation samples."
+        ),
+    )
 
     data = parser.add_argument_group("data")
     data.add_argument(
@@ -224,7 +234,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="default",
         help=(
             "default is LayerNorm for TENT/NOTE/EATA/SAR and all base parameters "
-            "for CoTTA/ViDA/Continual-MAE/TCA; TTT defaults to the backbone, "
+            "for CoTTA/ViDA/Continual-MAE/TCA/GOLD; TTT defaults to the backbone, "
             "while RoTTA defaults to LayerNorm; source and kNN do not adapt"
         ),
     )
@@ -245,6 +255,23 @@ def build_parser() -> argparse.ArgumentParser:
     adaptation.add_argument(
         "--rotta_augmentation_shift_ratio", type=float, default=0.0
     )
+    adaptation.add_argument("--gold_top_r", type=int, default=64)
+    adaptation.add_argument("--gold_alpha", type=float, default=0.1)
+    adaptation.add_argument("--gold_conf_thresh", type=float, default=0.8)
+    adaptation.add_argument("--gold_update_every", type=int, default=50)
+    adaptation.add_argument("--gold_adapter_lr_scale", type=float, default=1.0)
+    adaptation.add_argument("--gold_lambda_ce_trg", type=float, default=1.0)
+    adaptation.add_argument("--gold_lambda_cont", type=float, default=1.0)
+    adaptation.add_argument("--gold_temperature", type=float, default=0.1)
+    adaptation.add_argument("--gold_projection_dim", type=int, default=128)
+    adaptation.add_argument("--gold_teacher_momentum", type=float, default=0.999)
+    adaptation.add_argument("--gold_augmentation_noise_std", type=float, default=0.005)
+    adaptation.add_argument("--gold_augmentation_scale_std", type=float, default=0.05)
+    adaptation.add_argument(
+        "--gold_augmentation_mask_probability", type=float, default=0.0
+    )
+    adaptation.add_argument("--gold_augmentation_shift_ratio", type=float, default=0.0)
+    adaptation.add_argument("--gold_warmup_steps", type=int, default=0)
     adaptation.add_argument("--tca_teacher_momentum", type=float, default=0.999)
     adaptation.add_argument("--tca_centroid_momentum", type=float, default=0.9)
     adaptation.add_argument(
@@ -369,7 +396,7 @@ def _normalize_legacy_dashed_options(
 def _as_cli_value(name: str, value: Any) -> Any:
     if isinstance(value, (str, bytes)):
         return value
-    if name in {"domains", "source_domains"} and isinstance(value, Sequence):
+    if name in {"domains", "source_domains", "source_eval_domains"} and isinstance(value, Sequence):
         return ",".join(str(item) for item in value)
     if name == "source_samples_per_class":
         if isinstance(value, Sequence):
@@ -483,6 +510,9 @@ def validate_args(args: argparse.Namespace) -> None:
         "eval_batch_size": args.eval_batch_size,
         "stream_batch_size": args.stream_batch_size,
         "adaptation_steps": args.adaptation_steps,
+        "gold_top_r": args.gold_top_r,
+        "gold_update_every": args.gold_update_every,
+        "gold_projection_dim": args.gold_projection_dim,
         "rotta_memory_size": args.rotta_memory_size,
         "rotta_update_frequency": args.rotta_update_frequency,
     }
@@ -551,6 +581,18 @@ def validate_args(args: argparse.Namespace) -> None:
             )
     if args.method == "ttt" and args.adaptation_parameter_scope == "classifier":
         raise ValueError("TTT cannot adapt the task classifier scope")
+    if args.gold_warmup_steps < 0:
+        raise ValueError("gold_warmup_steps cannot be negative")
+    for name in ("gold_alpha", "gold_conf_thresh"):
+        if not 0 <= getattr(args, name) <= 1:
+            raise ValueError(f"{name} must be in [0, 1]")
+    for name in ("gold_temperature", "gold_adapter_lr_scale"):
+        if getattr(args, name) <= 0:
+            raise ValueError(f"{name} must be positive")
+    if min(args.gold_lambda_ce_trg, args.gold_lambda_cont) < 0:
+        raise ValueError("GOLD loss weights cannot be negative")
+    if args.gold_lambda_ce_trg + args.gold_lambda_cont == 0:
+        raise ValueError("GOLD requires at least one nonzero loss weight")
     if not 0 <= args.rotta_nu <= 1:
         raise ValueError("rotta_nu must be in [0, 1]")
     if not 0 <= args.rotta_bn_alpha <= 1:
@@ -560,6 +602,8 @@ def validate_args(args: argparse.Namespace) -> None:
     for name in (
         "rotta_augmentation_noise_std",
         "rotta_augmentation_scale_std",
+        "gold_augmentation_noise_std",
+        "gold_augmentation_scale_std",
         "tca_augmentation_noise_std",
         "tca_augmentation_scale_std",
     ):
@@ -568,12 +612,15 @@ def validate_args(args: argparse.Namespace) -> None:
     for name in (
         "rotta_augmentation_mask_probability",
         "rotta_augmentation_shift_ratio",
+        "gold_augmentation_mask_probability",
+        "gold_augmentation_shift_ratio",
         "tca_augmentation_mask_probability",
         "tca_augmentation_shift_ratio",
     ):
         if not 0 <= getattr(args, name) <= 1:
             raise ValueError(f"{name} must be in [0, 1]")
     for name in (
+        "gold_teacher_momentum",
         "tca_teacher_momentum",
         "tca_centroid_momentum",
         "tca_topology_weight_momentum",

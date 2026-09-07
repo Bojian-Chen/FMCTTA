@@ -188,9 +188,9 @@ runtime:
 @pytest.mark.parametrize(
     "path",
     [
-        "configs/HUST_Gearbox/note.yaml",
-        "configs/PU/note.yaml",
-        "configs/WT/note.yaml",
+        "configs/HUST_Gearbox/unifreq/note.yaml",
+        "configs/PU/unifreq/note.yaml",
+        "configs/WT/unifreq/note.yaml",
     ],
 )
 def test_note_yaml_configs_are_complete(path: str) -> None:
@@ -202,6 +202,46 @@ def test_note_yaml_configs_are_complete(path: str) -> None:
     assert args.note_memory_size == 64
     assert args.note_update_interval == 64
     assert args.note_temperature == 1.0
+
+
+def test_dataset_yaml_directories_are_grouped_by_foundation_model() -> None:
+    datasets = {
+        "HUST_Gearbox",
+        "MCC5_gearbox",
+        "MCC5_motor",
+        "PU",
+        "SDUST_Bearing",
+        "SDUST_Gear",
+        "WT",
+    }
+    unifreq_configs = {
+        "base",
+        "source",
+        "knn",
+        "tent",
+        "note",
+        "eata",
+        "sar",
+        "cotta",
+        "vida",
+        "continual_mae",
+        "rotta",
+        "tca",
+        "gold",
+        "ttt",
+    }
+
+    for dataset in datasets:
+        dataset_root = Path("configs") / dataset
+        assert {path.name for path in dataset_root.iterdir() if path.is_dir()} == {
+            "unifault",
+            "tf_profm",
+            "unifreq",
+        }
+        assert not list(dataset_root.glob("*.yaml"))
+        assert {
+            path.stem for path in (dataset_root / "unifreq").glob("*.yaml")
+        } == unifreq_configs
 
 
 @pytest.mark.parametrize(
@@ -237,11 +277,13 @@ def test_phmfd_yaml_matrix_is_complete_and_valid(
         "vida",
         "rotta",
         "tca",
+        "gold",
         "ttt",
     }
 
     for dataset_dir, dataset_tag in datasets.items():
         family_root = Path("configs") / dataset_dir / family_dir
+        base_args = parse_args(["--config", str(family_root / "base.yaml")])
         assert (family_root / "base.yaml").is_file()
         assert not (family_root / "continual_mae.yaml").exists()
         assert {path.stem for path in family_root.glob("*.yaml")} == {
@@ -258,13 +300,13 @@ def test_phmfd_yaml_matrix_is_complete_and_valid(
             assert args.pretrained_checkpoint == "auto"
             assert args.model_input_length == 0
             assert args.model_input_normalization == "auto"
-            assert args.normalization == "none"
+            assert args.normalization == base_args.normalization
             assert args.feature_branch == "fused"
             assert args.method == method
             assert args.run_name == f"{dataset_tag}-{run_tag}-{method}"
             if method in {"source", "ttt"}:
                 assert args.source_checkpoint == ""
             else:
-                assert f"/{dataset_tag}-{run_tag}-source-seed2025/" in (
+                assert f"{dataset_tag}-{run_tag}-source-seed2025" in Path(
                     args.source_checkpoint
-                )
+                ).parts

@@ -171,7 +171,7 @@ python -m ctta_data_builder.build \
   --config ctta_data_builder/configs/mcc5_motor.json \
   --overwrite
 
-python main.py --config configs/MCC5_motor/tent.yaml
+python main.py --config configs/MCC5_motor/unifreq/tent.yaml
 ```
 
 运行时序遵循 2.3 节的 `interleaved` 工况流，推荐 batch size 为 24 或其整数倍。

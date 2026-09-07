@@ -1,0 +1,24 @@
+# Run: python main.py --config configs/HUST_Gearbox/unifreq/vida.yaml
+# Run after configs/HUST_Gearbox/unifreq/source.yaml.
+base: base.yaml
+
+protocol:
+  method: vida # ["source", "knn", "tent", "eata", "sar", "cotta", "vida", "continual_mae"]
+
+adaptation:
+  adaptation_parameter_scope: all # ["default", "layernorm", "classifier", "backbone", "all"]
+  vida_learning_rate: 0.00001
+  vida_low_rank: 1
+  vida_high_rank: 128
+  vida_teacher_momentum: 0.999
+  vida_adapter_momentum: 0.999
+  vida_uncertainty_threshold: 0.2
+  vida_uncertainty_scale: 0.1
+  vida_augmentations: 10
+  vida_augmentation_noise_std: 0.005
+  vida_augmentation_scale_std: 0.05
+  vida_augmentation_mask_probability: 0.0
+  vida_augmentation_shift_ratio: 0.0
+
+runtime:
+  run_name: hust-gearbox-vida

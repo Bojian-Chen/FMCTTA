@@ -1,0 +1,16 @@
+# Run: python main.py --config configs/SDUST_Gear/unifreq/note.yaml
+base: base.yaml
+
+protocol:
+  method: note
+
+adaptation:
+  adaptation_learning_rate: 0.0001
+  adaptation_parameter_scope: layernorm
+  note_memory_size: 64
+  note_update_interval: 64
+  note_temperature: 1.0
+
+runtime:
+  run_name: sdust-gear-note
+

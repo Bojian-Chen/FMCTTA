@@ -1,0 +1,74 @@
+# SDUST-Gear 0.1-second UniFreq profile transferred from OCTTA. Run from the
+# repository root so relative manifest and checkpoint paths resolve.
+
+protocol:
+  # Without source_domains, domain 0 (1500 rpm, 0.5 A) is the labeled source.
+  # Domains 1--18 are consumed as online targets in the listed order, ending
+  # with the jointly fluctuating-speed-and-load condition.
+  domains: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+  # Ordering inside each target domain: shuffled randomly mixes the selected
+  # samples; class_block groups classes; interleaved cycles through classes.
+  stream_order: interleaved # ["shuffled", "class_block", "interleaved"]
+  # Number of consecutive target samples processed per online update.
+  stream_batch_size: 14
+  # Controls source splitting, sample selection/order, and model randomness.
+  seed: 2025
+
+data:
+  # UniFreq consumes the native 0.1-second windows without resampling.
+  dataset_manifest: data/ctta_custom/SDUST_Gear_0p1s_custom.json
+  # dataset/data_root are omitted because the manifest supplies both.
+  # Dataset-level normalization fitted on source-train only.
+  normalization: zscore # ["zscore", "minmax", "none"]
+  # Per-class fraction held out for source validation and best-epoch selection.
+  source_validation_ratio: 0.2
+  # true disables known label-layout repairs and fails on malformed data.
+  strict_data: false # [false, true]
+  # Each target domain occurs once; do not reuse samples across occurrences.
+  allow_repeated_target_samples: false # [false, true]
+  # Optional debug caps. null disables the cap; the class-balanced selectors
+  # below are mutually exclusive with their corresponding max_* option.
+  max_source_per_class: null
+  max_target_per_domain: null
+  # Empty means use every available sample from each selected source/target
+  # class. A scalar applies to every class; a list can allocate per class.
+  source_samples_per_class: "" # e.g. 100 or a 7-value per-class list
+  target_samples_per_class: "" # e.g. 100 or a nested 7-value per-class list
+
+model:
+  model_id: bojian1/UniFreq-tiny
+  # Empty means the model repository's default revision/cache location.
+  model_revision: ""
+  cache_dir: ""
+  local_files_only: false # [false, true]
+  # Select the UniFreq path used by source training and every target method.
+  feature_branch: frequency # ["fused", "time", "frequency"]
+  # Target methods load the checkpoint produced by source.yaml.
+  source_checkpoint: outputs/SDUST_Gear_0p1s_custom/source/sdust-gear-source-seed2025/source_checkpoint
+  classifier: linear # ["mlp", "linear", "cosine"]
+  # Dropout probability used by classifiers that contain dropout layers.
+  classifier_dropout: 0.0
+  # Batch size for source validation and offline target diagnostics.
+  eval_batch_size: 128
+  # Source-training settings shared by source.yaml and target methods.
+  source_epochs: 30
+  source_batch_size: 64
+  source_learning_rate: 0.01
+  source_backbone_lr_scale: 0.01
+  source_weight_decay: 0.0001
+  source_gradient_clip: 1.0
+
+adaptation:
+  # Shared defaults; method YAML files may override any of these values.
+  adaptation_learning_rate: 0.0025
+  adaptation_weight_decay: 0.0
+  adaptation_steps: 1
+  adaptation_parameter_scope: default # ["default", "layernorm", "classifier", "backbone", "all"]
+
+runtime:
+  # auto selects CUDA when available, otherwise CPU; cpu/cuda/cuda:0 are valid.
+  device: auto
+  # DataLoader worker processes; 0 loads data in the main process.
+  workers: 0
+  # Results are written under output_dir/dataset/method/run_name-seedN.
+  output_dir: outputs

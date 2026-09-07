@@ -1,0 +1,12 @@
+# Run: python main.py --config configs/MCC5_motor/unifreq/tent.yaml
+base: base.yaml
+
+protocol:
+  method: tent
+
+adaptation:
+  adaptation_parameter_scope: layernorm
+
+runtime:
+  run_name: mcc5-motor-tent
+

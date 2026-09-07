@@ -1,0 +1,16 @@
+# Run: python main.py --config configs/WT/unifreq/eata.yaml
+# Run after configs/WT/unifreq/source.yaml.
+base: base.yaml
+
+protocol:
+  method: eata # ["source", "knn", "tent", "eata", "sar", "cotta", "vida", "continual_mae"]
+
+adaptation:
+  adaptation_parameter_scope: layernorm # ["default", "layernorm", "classifier", "backbone", "all"]
+  eata_fisher_alpha: 1.0
+  eata_fisher_batches: 16
+  eata_entropy_margin: null
+  eata_diversity_margin: 0.95
+
+runtime:
+  run_name: wt-eata
