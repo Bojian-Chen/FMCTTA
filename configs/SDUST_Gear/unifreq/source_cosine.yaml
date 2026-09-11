@@ -1,0 +1,7 @@
+# Run before gold_tca.yaml to produce its compatible cosine checkpoint.
+base:
+  - base.yaml
+  - ../../methods/source_cosine.yaml
+
+runtime:
+  run_name: sdust-gear-source-cosine

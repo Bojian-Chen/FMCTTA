@@ -89,7 +89,7 @@ python main.py --config configs/PU/unifreq/ttt.yaml
 
 ```bash
 python main.py --config configs/PU/unifreq/ttt.yaml \
-  --source_checkpoint outputs/PU_0p1s_custom/ttt/pu-ttt-seed2025/source_checkpoint
+  --source_checkpoint outputs/PU_0p1s_custom/ttt/pu-ttt-standard-seed2025/source_checkpoint
 ```
 
 报告 TTT 时应以 `post_adapt.accuracy` 为主，同时保留 `online.accuracy` 说明当前 batch

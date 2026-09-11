@@ -1,3 +1,4 @@
+import copy
 import csv
 import json
 from pathlib import Path
@@ -8,11 +9,13 @@ import pytest
 import scipy.io as sio
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
 
 from fmctta import runner
 from fmctta.config import DATASETS, DatasetSpec
 from fmctta.data import FaultDataModule
 from fmctta.metrics import relative_improvement
+from fmctta.tca import TCAAdapter
 from main import parse_args
 
 
@@ -154,12 +157,17 @@ def test_source_domains_then_tta_subset_reorder_repetition(toy_setup):
     )
     source_dir = Path(source["run_dir"])
     report = json.loads((source_dir / "source_evaluation.json").read_text())
-    # Target domains are evaluated once by the formal online stream.
-    assert set(report["domains"]) == {"0"}
+    assert set(report["domains"]) == {"0", "1", "2", "3"}
     assert report["domains"]["0"]["evaluation_split"] == "source_validation"
     assert (source_dir / "source_checkpoint" / "source_evaluation.json").is_file()
-    assert source["online"]["accuracy_gain_pp"] == 0
-    assert source["online"]["macro_f1_gain_pp"] == 0
+    assert source["protocol"]["source_evaluation_only"] is True
+    assert source["protocol"]["target_stream_processed"] is False
+    assert source["protocol"]["configured_target_domains"] == [1, 2, 3]
+    assert source["online"] is None
+    assert source["source_baseline"] is None
+    assert source["adapter"] is None
+    assert source["domains"] == []
+    assert not (source_dir / "predictions.csv").exists()
 
     tta = runner.run_experiment(
         parse_args(
@@ -179,6 +187,10 @@ def test_source_domains_then_tta_subset_reorder_repetition(toy_setup):
         )
     )
     assert tta["protocol"]["target_domains"] == [3, 1, 3]
+    assert tta["protocol"]["mode"] == "standard"
+    assert tta["protocol"]["single_pass"] is True
+    assert tta["target_forgetting"] == {"enabled": False}
+    assert Path(tta["run_dir"]).name == "tta-standard-seed2025"
     baseline = tta["source_baseline"]
     assert [row["domain"] for row in baseline["domains"]] == [3, 1, 3]
     assert [row["position"] for row in baseline["domains"]] == [1, 2, 3]
@@ -203,15 +215,6 @@ def test_source_domains_then_tta_subset_reorder_repetition(toy_setup):
         baseline["domains"][0]["sample_ids_sha256"]
         != baseline["domains"][2]["sample_ids_sha256"]
     )
-    # Match by stable sample ID, never by the domain's row in the source run.
-    source_predictions = {
-        int(row["sample_id"]): int(row["source_prediction"])
-        for row in csv.DictReader((source_dir / "predictions.csv").open())
-    }
-    for row in rows:
-        assert (
-            int(row["source_prediction"]) == source_predictions[int(row["sample_id"])]
-        )
     for index, domain_row in enumerate(tta["domains"], 1):
         selected = [row for row in rows if int(row["position"]) == index]
         expected = (
@@ -221,6 +224,191 @@ def test_source_domains_then_tta_subset_reorder_repetition(toy_setup):
         assert domain_row["post_adapt_accuracy_gain_pp"] == pytest.approx(
             domain_row["post_adapt_accuracy"] - expected
         )
+
+
+def test_source_mode_does_not_build_adapter_or_process_target_stream(
+    toy_setup, monkeypatch
+):
+    _, common, _ = toy_setup
+
+    def fail_adapter_build(*args, **kwargs):
+        raise AssertionError("source mode must not build an online adapter")
+
+    monkeypatch.setattr(runner, "build_adapter", fail_adapter_build)
+    summary = runner.run_experiment(
+        parse_args(
+            common
+            + [
+                "--method",
+                "source",
+                "--domains",
+                "1,2",
+                "--protocol_mode",
+                "target_forgetting",
+                "--target_domain_repeats",
+                "0",
+                "--allow_target_sample_reuse",
+                "--run_name",
+                "source-only",
+            ]
+        )
+    )
+
+    assert summary["protocol"]["target_stream_processed"] is False
+    assert summary["target_forgetting"] == {
+        "enabled": False,
+        "reason": "source_evaluation_only",
+    }
+    assert summary["online"] is None
+    assert summary["domains"] == []
+    assert not (Path(summary["run_dir"]) / "predictions.csv").exists()
+
+
+def _assert_nested_equal(left, right):
+    if isinstance(left, torch.Tensor):
+        assert torch.equal(left, right)
+    elif isinstance(left, dict):
+        assert left.keys() == right.keys()
+        for key in left:
+            _assert_nested_equal(left[key], right[key])
+    elif isinstance(left, (list, tuple)):
+        assert len(left) == len(right)
+        for left_item, right_item in zip(left, right):
+            _assert_nested_equal(left_item, right_item)
+    else:
+        assert left == right
+
+
+def test_target_forgetting_probe_is_side_effect_free():
+    torch.manual_seed(9)
+    adapter = TCAAdapter(
+        SmallModel(),
+        torch.device("cpu"),
+        learning_rate=1e-3,
+        num_classes=2,
+        parameter_scope="all",
+    )
+    inputs = torch.randn(6, 1, 4)
+    labels = torch.tensor([0, 1, 0, 1, 0, 1])
+    loader = DataLoader(
+        TensorDataset(inputs, labels, torch.arange(6)),
+        batch_size=2,
+        shuffle=False,
+    )
+    adapter(inputs)
+    adapter.predict(inputs)
+    state_before = copy.deepcopy(adapter.state_dict())
+    optimizer_before = copy.deepcopy(adapter.optimizer.state_dict())
+    statistics_before = copy.deepcopy(adapter.statistics())
+    modes_before = [module.training for module in adapter.modules()]
+
+    metrics = runner.evaluate_adapter(
+        adapter,
+        loader,
+        torch.device("cpu"),
+        num_classes=2,
+    )
+
+    assert metrics["samples"] == 6
+    _assert_nested_equal(state_before, adapter.state_dict())
+    _assert_nested_equal(optimizer_before, adapter.optimizer.state_dict())
+    assert statistics_before == adapter.statistics()
+    assert modes_before == [module.training for module in adapter.modules()]
+
+
+def test_target_forgetting_mode_reports_each_revisit(toy_setup):
+    _, common, _ = toy_setup
+    summary = runner.run_experiment(
+        parse_args(
+            common
+            + [
+                "--method",
+                "tent",
+                "--domains",
+                "1,2",
+                "--protocol_mode",
+                "target_forgetting",
+                "--target_domain_repeats",
+                "2",
+                "--allow_target_sample_reuse",
+                "--run_name",
+                "forgetting",
+            ]
+        )
+    )
+
+    forgetting = summary["target_forgetting"]
+    assert summary["protocol"]["mode"] == "target_forgetting"
+    assert summary["protocol"]["single_pass"] is False
+    assert summary["protocol"]["configured_target_domains"] == [1, 2]
+    assert summary["protocol"]["target_domains"] == [1, 2, 1, 2]
+    assert summary["protocol"]["target_domain_repeats"] == 2
+    assert summary["protocol"]["allow_target_sample_reuse"] is True
+    assert Path(summary["run_dir"]).name == "forgetting-target_forgetting-seed2025"
+    assert forgetting["aggregate"]["repeat_measurements"] == 2
+    assert forgetting["sample_policy"] == "same_sample_ids"
+    assert [row["occurrence"] for row in forgetting["measurements"]] == [1, 1, 2, 2]
+    repeated = [row for row in forgetting["measurements"] if row["is_repeat"]]
+    assert [row["domain"] for row in repeated] == [1, 2]
+    for row in repeated:
+        assert row["accuracy_drop_from_previous_pp"] == pytest.approx(
+            row["previous_post_visit_accuracy"] - row["pre_visit_accuracy"]
+        )
+        assert row["accuracy_drop_from_first_pp"] == pytest.approx(
+            row["first_post_visit_accuracy"] - row["pre_visit_accuracy"]
+        )
+        assert row["accuracy_forgetting_from_best_pp"] == pytest.approx(
+            row["best_previous_post_visit_accuracy"] - row["pre_visit_accuracy"]
+        )
+        first = next(
+            item
+            for item in forgetting["measurements"]
+            if item["domain"] == row["domain"]
+        )
+        assert row["accuracy_change_from_first_occurrence_pp"] == pytest.approx(
+            row["pre_visit_accuracy"] - first["pre_visit_accuracy"]
+        )
+        assert row["sample_set_sha256"] == first["sample_set_sha256"]
+    assert [row["occurrence"] for row in forgetting["occurrence_means"]] == [1, 2]
+    output = Path(summary["run_dir"])
+    assert (output / "target_forgetting.json").is_file()
+    assert len(list(csv.DictReader((output / "target_forgetting.csv").open()))) == 4
+    assert len(
+        list(
+            csv.DictReader(
+                (output / "target_forgetting_occurrences.csv").open()
+            )
+        )
+    ) == 2
+
+
+def test_target_forgetting_can_allocate_distinct_samples(toy_setup):
+    _, common, _ = toy_setup
+    summary = runner.run_experiment(
+        parse_args(
+            common
+            + [
+                "--method",
+                "tent",
+                "--domains",
+                "1",
+                "--protocol_mode",
+                "target_forgetting",
+                "--target_domain_repeats",
+                "2",
+                "--target_samples_per_class",
+                "2",
+                "--run_name",
+                "forgetting-no-reuse",
+            ]
+        )
+    )
+
+    forgetting = summary["target_forgetting"]
+    first, second = forgetting["measurements"]
+    assert forgetting["sample_policy"] == "distinct_samples_without_replacement"
+    assert forgetting["same_samples_reused_across_occurrences"] is False
+    assert first["sample_set_sha256"] != second["sample_set_sha256"]
 
 
 def test_source_eval_selection_and_rng_isolation(toy_setup):

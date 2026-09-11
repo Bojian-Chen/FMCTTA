@@ -250,6 +250,51 @@ def intra_class_uniformity_loss(
     return torch.logsumexp(stacked, dim=0) - math.log(stacked.numel())
 
 
+def intra_class_compactness_loss(
+    features: torch.Tensor,
+    pseudo_labels: torch.Tensor,
+    num_classes: int,
+) -> torch.Tensor:
+    """Pull normalized features toward their differentiable pseudo-class mean."""
+
+    centers, _, _ = batch_class_centers(features, pseudo_labels, num_classes)
+    assigned_centers = centers[pseudo_labels]
+    return (features - assigned_centers).square().sum(dim=1).mean()
+
+
+def topology_consistency_loss(
+    target_centers: torch.Tensor,
+    source_topology: torch.Tensor,
+    valid_classes: torch.Tensor,
+) -> torch.Tensor:
+    """Match target/source pairwise cosine topology for currently seen classes."""
+
+    if target_centers.ndim != 2:
+        raise ValueError("Target class centers must have shape [classes, features]")
+    num_classes = target_centers.shape[0]
+    if source_topology.shape != (num_classes, num_classes):
+        raise ValueError(
+            f"Source topology must have shape [{num_classes}, {num_classes}]"
+        )
+    if valid_classes.shape != (num_classes,):
+        raise ValueError("Valid-class mask must have one entry per class")
+
+    selected_centers = F.normalize(target_centers[valid_classes], dim=1)
+    selected_source = source_topology[valid_classes][:, valid_classes]
+    if selected_centers.shape[0] < 2:
+        return target_centers.sum() * 0.0
+    target_topology = selected_centers @ selected_centers.T
+    pair_indices = torch.triu_indices(
+        selected_centers.shape[0],
+        selected_centers.shape[0],
+        offset=1,
+        device=target_centers.device,
+    )
+    target_pairs = target_topology[pair_indices[0], pair_indices[1]]
+    source_pairs = selected_source[pair_indices[0], pair_indices[1]].detach()
+    return F.mse_loss(target_pairs, source_pairs)
+
+
 def feature_alignment_loss(
     first_view: torch.Tensor,
     second_view: torch.Tensor,
@@ -524,5 +569,4 @@ class TCAAdapter(OnlineAdapter):
             }
         )
         return values
-
 

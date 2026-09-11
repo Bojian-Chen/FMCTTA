@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -133,6 +134,86 @@ def test_multiple_source_domains_are_mixed_for_training(tmp_path: Path) -> None:
     assert data.sample_selection["source_domains"] == [0, 1]
 
 
+def test_source_domain_in_target_stream_uses_only_unseen_samples(
+    tmp_path: Path,
+) -> None:
+    spec = _make_dataset(tmp_path)
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domains=(0,),
+        target_domains=(0, 1),
+        source_samples_per_class=(3, 3),
+        target_samples_per_class=((2, 2), (5, 5)),
+        normalization="none",
+    )
+
+    source_ids = torch.cat(
+        [data.source.train.sample_ids, data.source.validation.sample_ids]
+    )
+    overlapping_target = data.target_dataset(0, 0)
+    assert set(source_ids.tolist()).isdisjoint(overlapping_target.sample_ids.tolist())
+    assert torch.bincount(overlapping_target.labels, minlength=2).tolist() == [2, 2]
+
+
+def test_source_domain_target_defaults_to_all_unseen_samples(
+    tmp_path: Path,
+) -> None:
+    spec = _make_dataset(tmp_path)
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domains=(0,),
+        target_domains=(0,),
+        source_samples_per_class=(2, 3),
+        normalization="none",
+    )
+
+    source_ids = torch.cat(
+        [data.source.train.sample_ids, data.source.validation.sample_ids]
+    )
+    target = data.target_dataset(0)
+    assert torch.bincount(target.labels, minlength=2).tolist() == [3, 2]
+    assert set(source_ids.tolist()).isdisjoint(target.sample_ids.tolist())
+
+
+def test_source_domain_target_requires_unseen_samples(tmp_path: Path) -> None:
+    spec = _make_dataset(tmp_path)
+    with pytest.raises(ValueError, match="no unseen samples left"):
+        FaultDataModule(
+            spec,
+            tmp_path,
+            source_domains=(0,),
+            target_domains=(0,),
+        )
+
+
+def test_raw_recording_group_constraint_allows_only_exact_domain_overlap(
+    tmp_path: Path,
+) -> None:
+    spec = replace(
+        _make_dataset(tmp_path),
+        domain_groups=("recording-a", "recording-a", "recording-b"),
+    )
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domains=(0,),
+        target_domains=(0, 2),
+        source_samples_per_class=(3, 3),
+        normalization="none",
+    )
+    assert len(data.target_dataset(0, 0)) == 4
+
+    with pytest.raises(ValueError, match="same raw recording group"):
+        FaultDataModule(
+            spec,
+            tmp_path,
+            source_domains=(0,),
+            target_domains=(1, 2),
+        )
+
+
 def test_per_class_sampling_partitions_repeated_target_domains(tmp_path: Path) -> None:
     spec = _make_dataset(tmp_path)
     data = FaultDataModule(
@@ -186,3 +267,40 @@ def test_repeated_target_request_can_reuse_samples_when_enabled(tmp_path: Path) 
     assert [len(target) for target in targets] == [6, 6]
     assert len(torch.unique(all_ids)) < len(all_ids)
     assert data.sample_selection["allow_repeated_target_samples"] is True
+
+
+def test_forgetting_mode_reuses_identical_sample_set_for_each_visit(
+    tmp_path: Path,
+) -> None:
+    spec = _make_dataset(tmp_path)
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domain=0,
+        target_domains=(1, 1),
+        target_samples_per_class=((2, 2), (2, 2)),
+        allow_repeated_target_samples=True,
+        reuse_repeated_target_samples=True,
+        stream_order="shuffled",
+    )
+
+    first = data.target_dataset(1, 0)
+    second = data.target_dataset(1, 1)
+    assert sorted(first.sample_ids.tolist()) == sorted(second.sample_ids.tolist())
+    assert data.sample_selection["reuse_repeated_target_samples"] is True
+
+
+def test_forgetting_mode_requires_matching_repeat_sample_counts(
+    tmp_path: Path,
+) -> None:
+    spec = _make_dataset(tmp_path)
+    with pytest.raises(ValueError, match="identical per-class sample counts"):
+        FaultDataModule(
+            spec,
+            tmp_path,
+            source_domain=0,
+            target_domains=(1, 1),
+            target_samples_per_class=((2, 2), (2, 3)),
+            allow_repeated_target_samples=True,
+            reuse_repeated_target_samples=True,
+        )

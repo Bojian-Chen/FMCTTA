@@ -65,6 +65,7 @@ class FaultDataModule:
         source_samples_per_class: Optional[Sequence[int]] = None,
         target_samples_per_class: Optional[Sequence[Sequence[int]]] = None,
         source_domains: Optional[Sequence[int]] = None,
+        reuse_repeated_target_samples: bool = False,
     ) -> None:
         self.spec = spec
         if source_domains is None:
@@ -87,6 +88,7 @@ class FaultDataModule:
         self.stream_order = stream_order
         self.seed = seed
         self.allow_repeated_target_samples = allow_repeated_target_samples
+        self.reuse_repeated_target_samples = reuse_repeated_target_samples
         self.max_source_per_class = max_source_per_class
         self.max_target_per_domain = max_target_per_domain
         self.source_samples_per_class = (
@@ -111,6 +113,9 @@ class FaultDataModule:
         self._validate_domain_layout()
 
         train_ids, validation_ids = self._source_split_indices()
+        # Source domains may reappear in the online target stream, but samples
+        # used by either supervised split must remain permanently excluded.
+        self._source_sample_ids = np.concatenate((train_ids, validation_ids))
         self._normalizer = self._fit_normalizer(train_ids)
         self.signals = self._transform(self.raw_signals)
         self.source = SourceSplit(
@@ -122,12 +127,6 @@ class FaultDataModule:
     def _validate_options(self) -> None:
         if len(set(self.source_domains)) != len(self.source_domains):
             raise ValueError("source_domains cannot contain duplicates")
-        overlapping = sorted(set(self.source_domains).intersection(self.target_domains))
-        if overlapping:
-            raise ValueError(
-                "Source domains cannot also appear in the target stream: "
-                f"{overlapping}"
-            )
         all_domains = self.source_domains + self.target_domains
         invalid = [d for d in all_domains if not 0 <= d < self.spec.num_domains]
         if invalid:
@@ -141,7 +140,8 @@ class FaultDataModule:
             conflicting_targets = [
                 domain
                 for domain in self.target_domains
-                if self.spec.domain_groups[domain] in source_groups
+                if domain not in self.source_domains
+                and self.spec.domain_groups[domain] in source_groups
             ]
             if conflicting_targets:
                 raise ValueError(
@@ -218,6 +218,36 @@ class FaultDataModule:
                     raise ValueError(
                         "Each target class count must be between 1 and "
                         f"{target_limit} for target domain {domain}"
+                    )
+        else:
+            empty_overlaps = [
+                domain
+                for domain in dict.fromkeys(self.target_domains)
+                if domain in self.source_domains
+                and any(
+                    self._remaining_target_count(domain, class_id) == 0
+                    for class_id in range(self.spec.num_classes)
+                )
+            ]
+            if empty_overlaps:
+                raise ValueError(
+                    "Source/target domains have no unseen samples left after "
+                    "source selection; reduce source_samples_per_class or "
+                    f"max_source_per_class for domains: {empty_overlaps}"
+                )
+        if self.reuse_repeated_target_samples:
+            if not self.allow_repeated_target_samples:
+                raise ValueError(
+                    "reuse_repeated_target_samples requires "
+                    "allow_repeated_target_samples"
+                )
+            counts_by_domain: Dict[int, Tuple[int, ...]] = {}
+            for domain, counts in zip(self.target_domains, self._target_counts()):
+                previous = counts_by_domain.setdefault(domain, counts)
+                if counts != previous:
+                    raise ValueError(
+                        "Target-forgetting probes require identical per-class "
+                        f"sample counts whenever domain {domain} repeats"
                     )
 
     def _load_mat(self, path: Path, strict_data: bool) -> Tuple[np.ndarray, np.ndarray]:
@@ -394,15 +424,31 @@ class FaultDataModule:
         if self.target_samples_per_class is not None:
             return self.target_samples_per_class
         return tuple(
-            (self.spec.samples_per_class_for_domain(domain),)
-            * self.spec.num_classes
+            tuple(
+                self._remaining_target_count(domain, class_id)
+                for class_id in range(self.spec.num_classes)
+            )
             for domain in self.target_domains
         )
+
+    def _remaining_target_count(self, domain: int, class_id: int) -> int:
+        total = self.spec.samples_per_class_for_domain(domain)
+        if domain not in self.source_domains:
+            return total
+        if self.source_samples_per_class is not None:
+            source_count = self.source_samples_per_class[class_id]
+        elif self.max_source_per_class is not None:
+            source_count = min(self.max_source_per_class, total)
+        else:
+            source_count = total
+        return total - source_count
 
     def _target_class_ids(
         self, domain: int, stream_position: Optional[int] = None
     ) -> Tuple[np.ndarray, ...]:
         ids = self._domain_indices(domain)
+        if domain in self.source_domains:
+            ids = ids[~np.isin(ids, self._source_sample_ids)]
         rng = None
         if self.stream_order == "shuffled":
             seed = self.seed + 1009 * (domain + 1)
@@ -448,11 +494,14 @@ class FaultDataModule:
 
         cursors: Dict[int, List[int]] = {}
         available: Dict[int, Tuple[np.ndarray, ...]] = {}
+        repeated_samples: Dict[int, Tuple[np.ndarray, ...]] = {}
         datasets: Dict[int, FaultDomainDataset] = {}
         for position, (domain, counts) in enumerate(
             zip(self.target_domains, self._target_counts())
         ):
-            if self.allow_repeated_target_samples:
+            if self.reuse_repeated_target_samples and domain in repeated_samples:
+                occurrence_ids = repeated_samples[domain]
+            elif self.allow_repeated_target_samples:
                 occurrence_ids = self._target_class_ids(domain, position)
             else:
                 if domain not in available:
@@ -478,6 +527,8 @@ class FaultDataModule:
                 selected.append(class_ids[start:stop])
                 if not self.allow_repeated_target_samples:
                     cursors[domain][class_id] = stop
+            if self.reuse_repeated_target_samples and domain not in repeated_samples:
+                repeated_samples[domain] = tuple(item.copy() for item in selected)
             ids = self._order_target_ids(selected, domain, position)
             datasets[position] = self._make_dataset(ids, domain)
         return datasets
@@ -520,6 +571,7 @@ class FaultDataModule:
             ),
             "max_target_per_domain": self.max_target_per_domain,
             "allow_repeated_target_samples": self.allow_repeated_target_samples,
+            "reuse_repeated_target_samples": self.reuse_repeated_target_samples,
         }
 
     def target_dataset(
@@ -535,6 +587,8 @@ class FaultDataModule:
             return self._target_datasets[stream_position]
 
         ids = self._domain_indices(domain)
+        if domain in self.source_domains:
+            ids = ids[~np.isin(ids, self._source_sample_ids)]
         rng = np.random.RandomState(self.seed + 1009 * (domain + 1))
         if self.stream_order == "shuffled":
             ids = ids.copy()
@@ -546,11 +600,10 @@ class FaultDataModule:
             ]
             ids = np.asarray(
                 [
-                    by_class[class_id][offset]
-                    for offset in range(
-                        self.spec.samples_per_class_for_domain(domain)
-                    )
-                    for class_id in range(self.spec.num_classes)
+                    class_ids[offset]
+                    for offset in range(max(len(item) for item in by_class))
+                    for class_ids in by_class
+                    if offset < len(class_ids)
                 ],
                 dtype=np.int64,
             )

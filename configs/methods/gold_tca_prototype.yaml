@@ -1,0 +1,3 @@
+# Source-initialized persistent prototype-memory GOLD-TCA variant.
+adaptation:
+  gold_tca_agop_init: source_prototypes

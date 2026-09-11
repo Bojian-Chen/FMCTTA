@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/SDUST_Gear_1024point_custom/source/sdust-gear-tf-profm-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: sdust-gear-tf-profm-gold_tca

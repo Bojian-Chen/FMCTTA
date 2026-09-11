@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/WT_0p1s_custom/source/wt-unifault-small-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: wt-unifault-small-gold_tca

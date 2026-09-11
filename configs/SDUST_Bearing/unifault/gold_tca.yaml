@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/SDUST_Bearing_0p1s_custom/source/sdust-bearing-unifault-small-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: sdust-bearing-unifault-small-gold_tca

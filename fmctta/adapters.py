@@ -865,7 +865,7 @@ def build_adapter(
     gold_augmentation_shift_ratio: float = 0.0,
     gold_tca_lambda_topology: float = 0.15,
     gold_tca_centroid_momentum: float = 0.9,
-    gold_tca_uniformity_temperature: float = 2.0,
+    gold_tca_agop_init: str = "classifier_weights",
     ttt_auxiliary_head: Optional[nn.Module] = None,
     sar_rho: float = 0.05,
     sar_entropy_margin: Optional[float] = None,
@@ -1012,9 +1012,12 @@ def build_adapter(
     if method == "gold_tca":
         from .gold_tca import GOLDTCAAdapter
 
-        if gold_source_prototypes is None:
+        if (
+            gold_tca_agop_init == "source_prototypes"
+            and gold_source_prototypes is None
+        ):
             raise ValueError(
-                "gold_tca requires class prototypes from source training data"
+                "gold_tca source_prototypes mode requires source prototypes"
             )
         return GOLDTCAAdapter(
             model,
@@ -1039,9 +1042,9 @@ def build_adapter(
             augmentation_scale_std=gold_augmentation_scale_std,
             augmentation_mask_probability=gold_augmentation_mask_probability,
             augmentation_shift_ratio=gold_augmentation_shift_ratio,
-            lambda_topology=gold_tca_lambda_topology,
+            topology_weight=gold_tca_lambda_topology,
             centroid_momentum=gold_tca_centroid_momentum,
-            uniformity_temperature=gold_tca_uniformity_temperature,
+            agop_initialization=gold_tca_agop_init,
         )
     if method == "tca":
         from .tca import TCAAdapter

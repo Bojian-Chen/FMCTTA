@@ -1,12 +1,6 @@
-"""GOLD adaptation with angular class-topology preservation.
+"""GOLD selective adaptation with TCA topology preservation."""
 
-This variant keeps GOLD's AGOP subspace, scaling adapter, EMA teacher,
-self-training, and source-prototype contrastive objective.  TCA contributes
-only persistent pseudo-class centers and topology losses, evaluated on the
-normalized GOLD-adapted features that enter a frozen cosine classifier.
-"""
-
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -17,29 +11,13 @@ from .model import CosineClassifier
 from .tca import (
     TCAStateManager,
     batch_class_centers,
-    inter_class_uniformity_loss,
+    intra_class_compactness_loss,
+    topology_consistency_loss,
 )
 
 
-def intra_class_compactness_loss(
-    normalized_features: torch.Tensor,
-    pseudo_labels: torch.Tensor,
-) -> torch.Tensor:
-    """Mean within-class angular dispersion, safely ignoring singletons."""
-
-    class_losses = []
-    for pseudo_class in pseudo_labels.unique():
-        class_features = normalized_features[pseudo_labels == pseudo_class]
-        if class_features.shape[0] < 2:
-            continue
-        class_losses.append(torch.pdist(class_features, p=2).square().mean())
-    if not class_losses:
-        return normalized_features.sum() * 0.0
-    return torch.stack(class_losses).mean()
-
-
 class GOLDTCAAdapter(GOLDAdapter):
-    """Selective GOLD plasticity regularized by persistent class topology."""
+    """Add persistent class topology to GOLD's adapted angular features."""
 
     def __init__(
         self,
@@ -47,27 +25,24 @@ class GOLDTCAAdapter(GOLDAdapter):
         device: torch.device,
         learning_rate: float,
         num_classes: int,
-        source_prototypes: torch.Tensor,
-        *,
-        lambda_topology: float = 0.15,
+        source_prototypes: Optional[torch.Tensor] = None,
+        topology_weight: float = 0.15,
         centroid_momentum: float = 0.9,
-        uniformity_temperature: float = 2.0,
-        **gold_kwargs,
+        agop_initialization: str = "classifier_weights",
+        **gold_options,
     ) -> None:
         if not isinstance(getattr(model, "head", None), CosineClassifier):
-            raise ValueError("gold_tca requires the cosine classifier")
-        if gold_kwargs.get("parameter_scope") == "classifier":
+            raise ValueError("GOLD-TCA requires the cosine classifier")
+        if gold_options.get("parameter_scope", "all") == "classifier":
             raise ValueError(
-                "gold_tca freezes the classifier; classifier parameter scope is invalid"
+                "GOLD-TCA freezes the classifier; classifier scope is invalid"
             )
         if num_classes < 2:
-            raise ValueError("gold_tca requires at least two classes")
-        if lambda_topology < 0:
-            raise ValueError("gold_tca topology weight cannot be negative")
+            raise ValueError("GOLD-TCA requires at least two classes")
+        if topology_weight < 0:
+            raise ValueError("GOLD-TCA topology weight cannot be negative")
         if not 0.0 <= centroid_momentum < 1.0:
-            raise ValueError("gold_tca centroid momentum must be in [0, 1)")
-        if uniformity_temperature <= 0:
-            raise ValueError("gold_tca uniformity temperature must be positive")
+            raise ValueError("GOLD-TCA centroid momentum must be in [0, 1)")
 
         super().__init__(
             model,
@@ -75,101 +50,165 @@ class GOLDTCAAdapter(GOLDAdapter):
             learning_rate,
             num_classes,
             source_prototypes,
-            **gold_kwargs,
+            freeze_classifier=True,
+            agop_initialization=agop_initialization,
+            **gold_options,
         )
-
-        # The classifier defines the fixed angular geometry.  GOLD may adapt
-        # any requested backbone scope, plus its projector and scaling vector.
-        head_parameter_ids = {
-            id(parameter) for parameter in self.model.head.parameters()
-        }
-        self.model.head.requires_grad_(False)
-        self.parameter_names = tuple(
-            name for name in self.parameter_names if not name.startswith("head.")
-        )
-        for group in self.optimizer.param_groups:
-            group["params"] = [
-                parameter
-                for parameter in group["params"]
-                if id(parameter) not in head_parameter_ids
-            ]
-        self.optimizer.param_groups[:] = [
-            group for group in self.optimizer.param_groups if group["params"]
-        ]
-
-        self.num_classes = num_classes
-        self.lambda_topology = lambda_topology
-        self.centroid_momentum = centroid_momentum
-        self.uniformity_temperature = uniformity_temperature
         self.topology_state = TCAStateManager(
             num_classes,
             self.feature_dim,
             device=device,
         )
+        self.register_buffer(
+            "prototype_memory",
+            self.source_prototypes.detach().clone(),
+        )
+        self.prototype_state: Optional[TCAStateManager] = None
+        if self.agop_initialization == "source_prototypes":
+            self.prototype_state = TCAStateManager(
+                num_classes,
+                self.feature_dim,
+                device=device,
+            )
+            with torch.no_grad():
+                self.prototype_state.historical_class_centers.copy_(
+                    self.prototype_memory
+                )
+                self.prototype_state.seen_class_mask.fill_(True)
+        self.num_classes = num_classes
+        self.topology_weight = topology_weight
+        self.centroid_momentum = centroid_momentum
+        normalized_weights = F.normalize(self.model.head.weight.detach().float(), dim=1)
+        self.register_buffer(
+            "source_topology",
+            normalized_weights @ normalized_weights.T,
+        )
         self.topology_updates = 0
-        self.last_inter_class_loss: Optional[float] = None
+        self.prototype_updates = 0
+        self.last_gold_loss: Optional[float] = None
+        self.last_topology_consistency_loss: Optional[float] = None
         self.last_intra_class_loss: Optional[float] = None
         self.last_topology_loss: Optional[float] = None
+        self.last_total_loss: Optional[float] = None
 
-    def _update_class_centers(
+    @torch.no_grad()
+    def contrastive_anchors(
         self,
-        normalized_features: torch.Tensor,
-        pseudo_labels: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        adapted_features: torch.Tensor,
+        logits: torch.Tensor,
+    ) -> torch.Tensor:
+        """Select the configured persistent semantic anchor for GOLD contrast."""
+
+        pseudo_labels = logits.argmax(dim=1)
+        if self.prototype_state is not None:
+            return self.prototype_memory[pseudo_labels]
+        normalized_weights = F.normalize(self.model.head.weight, dim=1)
+        return normalized_weights[pseudo_labels]
+
+    @torch.enable_grad()
+    def batch_agop(
+        self,
+        features: torch.Tensor,
+        logits: torch.Tensor,
+    ) -> Optional[torch.Tensor]:
+        """Use evolving prototypes only in the prototype-memory mode."""
+
+        if self.prototype_state is not None:
+            return self.prototype_agop(self.prototype_memory)
+        return super().batch_agop(features, logits)
+
+    def adaptation_regularizer(
+        self,
+        adapted_features: torch.Tensor,
+        logits: torch.Tensor,
+        gold_loss: torch.Tensor,
+    ) -> torch.Tensor:
+        normalized_features = F.normalize(adapted_features, dim=1)
+        pseudo_labels = logits.detach().argmax(dim=1)
         batch_centers, _, present_classes = batch_class_centers(
             normalized_features,
             pseudo_labels,
             self.num_classes,
         )
-        return self.topology_state.update_class_centers(
+        centers, valid_classes = self.topology_state.update_class_centers(
             batch_centers,
             present_classes,
             self.centroid_momentum,
         )
+        if self.prototype_state is not None:
+            prototype_batch_centers, _, prototype_present_classes = batch_class_centers(
+                adapted_features.detach(),
+                pseudo_labels,
+                self.num_classes,
+            )
+            updated_prototypes, _ = self.prototype_state.update_class_centers(
+                prototype_batch_centers,
+                prototype_present_classes,
+                self.centroid_momentum,
+            )
+            with torch.no_grad():
+                self.prototype_memory.copy_(updated_prototypes.detach())
+            self.prototype_updates += 1
 
-    def additional_regularization(
-        self,
-        adapted_features: torch.Tensor,
-        student_logits: torch.Tensor,
-    ) -> torch.Tensor:
-        normalized_features = F.normalize(adapted_features, dim=1)
-        pseudo_labels = student_logits.detach().argmax(dim=1)
-        centers, seen_classes = self._update_class_centers(
-            normalized_features,
-            pseudo_labels,
-        )
-        normalized_centers = F.normalize(centers, dim=1)
-        inter_class_loss = inter_class_uniformity_loss(
-            normalized_centers,
-            seen_classes,
-            temperature=self.uniformity_temperature,
+        topology_loss = topology_consistency_loss(
+            centers,
+            self.source_topology,
+            valid_classes,
         )
         intra_class_loss = intra_class_compactness_loss(
             normalized_features,
             pseudo_labels,
+            self.num_classes,
         )
-        topology_loss = inter_class_loss + intra_class_loss
+        structural_loss = topology_loss + intra_class_loss
+        weighted_topology_loss = self.topology_weight * structural_loss
 
         self.topology_updates += 1
-        self.last_inter_class_loss = float(inter_class_loss.detach().item())
+        self.last_gold_loss = float(gold_loss.detach().item())
+        self.last_topology_consistency_loss = float(topology_loss.detach().item())
         self.last_intra_class_loss = float(intra_class_loss.detach().item())
-        self.last_topology_loss = float(topology_loss.detach().item())
-        return self.lambda_topology * topology_loss
+        self.last_topology_loss = float(structural_loss.detach().item())
+        self.last_total_loss = float(
+            (gold_loss.detach() + weighted_topology_loss.detach()).item()
+        )
+        return weighted_topology_loss
 
     def statistics(self) -> Dict[str, object]:
         values = super().statistics()
+        historical_centers = self.topology_state.historical_class_centers.detach()
+        normalized_centers = F.normalize(historical_centers, dim=1)
+        target_topology = normalized_centers @ normalized_centers.T
+        prototype_mode = self.prototype_state is not None
         values.update(
-            classifier="cosine",
-            classifier_frozen=not any(
-                parameter.requires_grad for parameter in self.model.head.parameters()
-            ),
-            lambda_topology=self.lambda_topology,
+            method_components=[
+                "golden_subspace",
+                "persistent_class_topology",
+                "cosine_classifier",
+            ],
+            topology_weight=self.topology_weight,
             centroid_momentum=self.centroid_momentum,
-            uniformity_temperature=self.uniformity_temperature,
+            semantic_anchor=(
+                "persistent_prototype_memory"
+                if prototype_mode
+                else "frozen_cosine_classifier_weight"
+            ),
+            dynamic_agop_source=(
+                "persistent_prototype_memory"
+                if prototype_mode
+                else "reliable_target_samples"
+            ),
+            prototype_updates=self.prototype_updates,
+            source_topology_reference="frozen_cosine_classifier_weight_gram",
+            topology_distance="off_diagonal_mean_squared_error",
             class_centers_seen=int(self.topology_state.seen_class_mask.sum().item()),
+            seen_class_mask=self.topology_state.seen_class_mask.detach().cpu().tolist(),
+            source_topology=self.source_topology.detach().cpu().tolist(),
+            target_topology=target_topology.cpu().tolist(),
             topology_updates=self.topology_updates,
-            last_inter_class_loss=self.last_inter_class_loss,
+            last_gold_loss=self.last_gold_loss,
+            last_topology_consistency_loss=self.last_topology_consistency_loss,
             last_intra_class_loss=self.last_intra_class_loss,
             last_topology_loss=self.last_topology_loss,
+            last_total_loss=self.last_total_loss,
         )
         return values

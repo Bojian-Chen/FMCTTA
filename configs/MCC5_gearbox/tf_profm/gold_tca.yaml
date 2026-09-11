@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/MCC5_Gearbox_1024point_custom/source/mcc5-gearbox-tf-profm-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: mcc5-gearbox-tf-profm-gold_tca

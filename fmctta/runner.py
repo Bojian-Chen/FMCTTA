@@ -6,7 +6,7 @@ import json
 import random
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import numpy as np
 import torch
@@ -38,6 +38,9 @@ from .source import (
     train_source,
 )
 from .ttt import build_ttt_head
+
+
+TARGET_FORGETTING_METRICS = ("accuracy", "balanced_accuracy", "macro_f1")
 
 
 def set_seed(seed: int) -> None:
@@ -168,6 +171,132 @@ def _sample_digest(sample_ids: torch.Tensor) -> str:
     ).hexdigest()
 
 
+def _sample_set_digest(sample_ids: torch.Tensor) -> str:
+    """Hash a sample set independently of its online presentation order."""
+
+    ordered = torch.sort(sample_ids.detach().cpu().long()).values
+    return hashlib.sha256(ordered.numpy().astype("<i8").tobytes()).hexdigest()
+
+
+def _target_forgetting_summary(
+    rows: List[Dict[str, Any]],
+    allow_target_sample_reuse: bool,
+) -> Dict[str, Any]:
+    repeat_rows = [row for row in rows if row["is_repeat"]]
+    domains: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        key = str(row["domain"])
+        domain = domains.setdefault(
+            key,
+            {
+                "domain": row["domain"],
+                "domain_name": row["domain_name"],
+                "occurrences": 0,
+                "repeat_measurements": 0,
+            },
+        )
+        domain["occurrences"] += 1
+        if row["is_repeat"]:
+            domain["repeat_measurements"] += 1
+            for metric in TARGET_FORGETTING_METRICS:
+                domain[f"final_{metric}_drop_from_previous_pp"] = row[
+                    f"{metric}_drop_from_previous_pp"
+                ]
+                domain[f"final_{metric}_drop_from_first_pp"] = row[
+                    f"{metric}_drop_from_first_pp"
+                ]
+                domain[f"final_{metric}_forgetting_from_best_pp"] = row[
+                    f"{metric}_forgetting_from_best_pp"
+                ]
+                domain[f"final_{metric}_change_from_first_occurrence_pp"] = row[
+                    f"{metric}_change_from_first_occurrence_pp"
+                ]
+
+    aggregate: Dict[str, Any] = {"repeat_measurements": len(repeat_rows)}
+    for metric in TARGET_FORGETTING_METRICS:
+        for suffix in (
+            "drop_from_previous_pp",
+            "drop_from_first_pp",
+            "forgetting_from_best_pp",
+            "change_from_first_occurrence_pp",
+        ):
+            values = [float(row[f"{metric}_{suffix}"]) for row in repeat_rows]
+            aggregate[f"mean_{metric}_{suffix}"] = (
+                float(np.mean(values)) if values else None
+            )
+            aggregate[f"max_{metric}_{suffix}"] = max(values) if values else None
+
+    occurrence_means: List[Dict[str, Any]] = []
+    occurrence_ids = sorted({int(row["occurrence"]) for row in rows})
+    for occurrence in occurrence_ids:
+        occurrence_rows = [
+            row for row in rows if int(row["occurrence"]) == occurrence
+        ]
+        occurrence_mean: Dict[str, Any] = {
+            "occurrence": occurrence,
+            "domain_count": len(occurrence_rows),
+            "domains": [int(row["domain"]) for row in occurrence_rows],
+        }
+        for metric in TARGET_FORGETTING_METRICS:
+            for stage in ("pre_visit", "post_visit"):
+                occurrence_mean[f"mean_{stage}_{metric}"] = float(
+                    np.mean(
+                        [
+                            float(row[f"{stage}_{metric}"])
+                            for row in occurrence_rows
+                        ]
+                    )
+                )
+            for suffix in (
+                "drop_from_previous_pp",
+                "drop_from_first_pp",
+                "forgetting_from_best_pp",
+                "change_from_first_occurrence_pp",
+            ):
+                values = [
+                    float(row[f"{metric}_{suffix}"])
+                    for row in occurrence_rows
+                    if row[f"{metric}_{suffix}"] is not None
+                ]
+                occurrence_mean[f"mean_{metric}_{suffix}"] = (
+                    float(np.mean(values)) if values else None
+                )
+        occurrence_means.append(occurrence_mean)
+
+    return {
+        "enabled": True,
+        "definition": (
+            "For each repeated target domain, forgetting is measured before "
+            "re-adaptation. drop_from_previous compares the current pre-visit "
+            "probe with the previous occurrence's post-visit probe; positive "
+            "values mean performance declined. change_from_first_occurrence "
+            "compares pre-visit probes at the same stage (current minus first), "
+            "so positive values mean improvement. Probes never update the adapter."
+        ),
+        "score_unit": "percentage_points",
+        "probe_updates_adapter": False,
+        "same_samples_reused_across_occurrences": allow_target_sample_reuse,
+        "sample_policy": (
+            "same_sample_ids"
+            if allow_target_sample_reuse
+            else "distinct_samples_without_replacement"
+        ),
+        "comparison_warning": (
+            None
+            if allow_target_sample_reuse
+            else (
+                "Probe samples differ across occurrences, so measured drops "
+                "may include sample-composition effects as well as forgetting."
+            )
+        ),
+        "metrics": list(TARGET_FORGETTING_METRICS),
+        "aggregate": aggregate,
+        "occurrence_means": occurrence_means,
+        "domains": domains,
+        "measurements": rows,
+    }
+
+
 def evaluate_source_domains(model, data, domains, args, device):
     """Run diagnostics without advancing the adaptation RNG or target stream."""
     rows = []
@@ -216,16 +345,44 @@ def run_experiment(args) -> Dict[str, Any]:
         sequence = resolve_sequence(spec, args.domains)
         source_domains, target_domains = (sequence[0],), sequence[1:]
     source_domain = source_domains[0]
+    target_forgetting_enabled = args.protocol_mode == "target_forgetting"
+    source_evaluation_only = args.method.lower() == "source"
+    configured_target_domains = target_domains
+    if (
+        not source_evaluation_only
+        and target_forgetting_enabled
+        and args.target_domain_repeats < 1
+    ):
+        raise ValueError("target_domain_repeats must be positive")
+    if target_forgetting_enabled and not source_evaluation_only:
+        target_domains = configured_target_domains * args.target_domain_repeats
+        repeated_domains = {
+            domain for domain in target_domains if target_domains.count(domain) > 1
+        }
+        if not repeated_domains:
+            raise ValueError(
+                "target_forgetting protocol mode requires at least one repeated "
+                "target domain"
+            )
+    allow_repeated_target_samples = (
+        args.allow_target_sample_reuse
+        if target_forgetting_enabled and not source_evaluation_only
+        else args.allow_repeated_target_samples
+    )
     source_eval_domains = resolve_source_eval_domains(
         args.source_eval_domains, spec, source_domains, target_domains
     )
     source_samples_per_class = parse_source_samples_per_class(
         args.source_samples_per_class, spec.num_classes
     )
-    target_samples_per_class = parse_target_samples_per_class(
-        args.target_samples_per_class,
-        spec.num_classes,
-        len(target_domains),
+    target_samples_per_class = (
+        None
+        if source_evaluation_only
+        else parse_target_samples_per_class(
+            args.target_samples_per_class,
+            spec.num_classes,
+            len(target_domains),
+        )
     )
     stream_order = args.stream_order or spec.default_stream_order
     resolved_scope = resolve_adaptation_parameter_scope(
@@ -235,11 +392,16 @@ def run_experiment(args) -> Dict[str, Any]:
     args.resolved_adaptation_parameter_scope = resolved_scope
 
     run_name = args.run_name or datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_directory_name = (
+        f"{run_name}-seed{args.seed}"
+        if source_evaluation_only
+        else f"{run_name}-{args.protocol_mode}-seed{args.seed}"
+    )
     run_dir = (
         Path(args.output_dir)
         / args.dataset
         / args.method.lower()
-        / f"{run_name}-seed{args.seed}"
+        / run_directory_name
     )
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -247,17 +409,22 @@ def run_experiment(args) -> Dict[str, Any]:
         spec=spec,
         data_root=Path(args.data_root),
         source_domains=source_domains,
-        target_domains=target_domains,
+        target_domains=() if source_evaluation_only else target_domains,
         normalization=args.normalization,
         source_validation_ratio=args.source_validation_ratio,
         stream_order=stream_order,
         seed=args.seed,
         strict_data=args.strict_data,
-        allow_repeated_target_samples=args.allow_repeated_target_samples,
+        allow_repeated_target_samples=allow_repeated_target_samples,
         max_source_per_class=args.max_source_per_class,
         max_target_per_domain=args.max_target_per_domain,
         source_samples_per_class=source_samples_per_class,
         target_samples_per_class=target_samples_per_class,
+        reuse_repeated_target_samples=(
+            target_forgetting_enabled
+            and not source_evaluation_only
+            and args.allow_target_sample_reuse
+        ),
     )
     source_train_loader = data.loader(
         data.source.train,
@@ -273,14 +440,6 @@ def run_experiment(args) -> Dict[str, Any]:
         workers=args.workers,
         device=device,
     )
-    source_reference_loader = data.loader(
-        data.source.train,
-        args.eval_batch_size,
-        shuffle=False,
-        workers=args.workers,
-        device=device,
-    )
-
     model, foundation_config = build_model(
         args.model_id,
         spec.num_classes,
@@ -401,6 +560,9 @@ def run_experiment(args) -> Dict[str, Any]:
 
     source_evaluation = None
     if args.method.lower() == "source" or not args.source_checkpoint:
+        if source_evaluation_only:
+            model.eval()
+            model.requires_grad_(False)
         source_evaluation_rows = evaluate_source_domains(
             model, data, source_eval_domains, args, device
         )
@@ -418,6 +580,76 @@ def run_experiment(args) -> Dict[str, Any]:
         _write_csv(run_dir / "source_evaluation.csv", source_evaluation_rows)
         if not args.source_checkpoint:
             _write_json(run_dir / "source_checkpoint" / "source_evaluation.json", source_evaluation)
+
+    if source_evaluation_only:
+        summary: Dict[str, Any] = {
+            "protocol": {
+                "name": "source_evaluation_only",
+                "mode": args.protocol_mode,
+                "source_evaluation_only": True,
+                "source_domain": source_domain,
+                "source_domain_name": spec.domain_name(source_domain),
+                "source_domains": list(source_domains),
+                "source_domain_names": [
+                    spec.domain_name(domain) for domain in source_domains
+                ],
+                "configured_target_domains": list(configured_target_domains),
+                "target_domain_repeats_ignored": args.target_domain_repeats,
+                "target_stream_processed": False,
+                "target_labels_used_for_adaptation": False,
+            },
+            "dataset": {
+                "name": spec.name,
+                "description": spec.description,
+                "num_classes": spec.num_classes,
+                "num_domains": spec.num_domains,
+                "num_channels": spec.num_channels,
+                "warnings": data.data_warnings,
+                "sample_selection": data.sample_selection,
+            },
+            "model": {
+                "foundation_model": args.foundation_model,
+                "foundation_config": foundation_config.to_dict(),
+                "model_id": effective_model_id or None,
+                "revision": effective_revision,
+                "classifier": args.classifier,
+                "feature_branch": effective_feature_branch,
+                "feature_dim": model.feature_dim,
+            },
+            "method": "source",
+            "source": {
+                "validation": source_model_validation,
+                "classifier_validation": source_model_validation,
+                "checkpoint_metadata": checkpoint_metadata,
+                "evaluation": source_evaluation,
+            },
+            "source_baseline": None,
+            "online": None,
+            "post_adapt": None,
+            "adapter": None,
+            "target_forgetting": {
+                "enabled": False,
+                "reason": "source_evaluation_only",
+            },
+            "domains": [],
+            "run_dir": str(run_dir),
+        }
+        public_args = dict(vars(args))
+        if public_args.get("hf_token"):
+            public_args["hf_token"] = "<redacted>"
+        _write_json(run_dir / "config.json", public_args)
+        _write_json(run_dir / "source_history.json", {"epochs": source_history})
+        _write_json(run_dir / "summary.json", summary)
+        print(f"Source evaluation only; results={run_dir}")
+        return summary
+
+    source_reference_loader = data.loader(
+        data.source.train,
+        args.eval_batch_size,
+        shuffle=False,
+        workers=args.workers,
+        device=device,
+    )
 
     fisher: Optional[Dict[str, torch.Tensor]] = None
     if args.method.lower() == "eata" and args.eata_fisher_alpha > 0:
@@ -444,7 +676,10 @@ def run_experiment(args) -> Dict[str, Any]:
         )
 
     gold_source_prototypes = None
-    if args.method.lower() in {"gold", "gold_tca"}:
+    if args.method.lower() == "gold" or (
+        args.method.lower() == "gold_tca"
+        and args.gold_tca_agop_init == "source_prototypes"
+    ):
         from .gold import build_source_prototypes
 
         gold_source_prototypes = build_source_prototypes(
@@ -500,7 +735,7 @@ def run_experiment(args) -> Dict[str, Any]:
         gold_augmentation_shift_ratio=args.gold_augmentation_shift_ratio,
         gold_tca_lambda_topology=args.gold_tca_lambda_topology,
         gold_tca_centroid_momentum=args.gold_tca_centroid_momentum,
-        gold_tca_uniformity_temperature=args.gold_tca_uniformity_temperature,
+        gold_tca_agop_init=args.gold_tca_agop_init,
         tca_teacher_momentum=args.tca_teacher_momentum,
         tca_centroid_momentum=args.tca_centroid_momentum,
         tca_topology_weight_momentum=args.tca_topology_weight_momentum,
@@ -563,6 +798,12 @@ def run_experiment(args) -> Dict[str, Any]:
         knn_reference_features=knn_reference_features,
         knn_reference_labels=knn_reference_labels,
     )
+    if args.method.lower() == "gold_tca":
+        print(
+            "Initialized GOLD-TCA Golden Subspace: "
+            f"agop_init={args.gold_tca_agop_init} "
+            f"feature_dim={adapter.feature_dim} rank={adapter.top_r}"
+        )
     if args.method.lower() in {"gold", "gold_tca"} and args.gold_warmup_steps > 0:
         adapter.warmup(source_train_loader, args.gold_warmup_steps)
 
@@ -592,6 +833,8 @@ def run_experiment(args) -> Dict[str, Any]:
     source_baseline_rows: List[Dict[str, Any]] = []
     domain_rows: List[Dict[str, Any]] = []
     prediction_rows: List[Dict[str, Any]] = []
+    target_forgetting_rows: List[Dict[str, Any]] = []
+    target_forgetting_history: Dict[int, List[Dict[str, Any]]] = {}
     for position, domain in enumerate(target_domains, start=1):
         domain_name = spec.domain_name(domain)
         target_dataset = data.target_dataset(domain, stream_position=position - 1)
@@ -602,6 +845,61 @@ def run_experiment(args) -> Dict[str, Any]:
             workers=args.workers,
             device=device,
         )
+        forgetting_row: Optional[Dict[str, Any]] = None
+        if target_forgetting_enabled:
+            pre_visit_metrics = evaluate_adapter(
+                adapter,
+                target_loader,
+                device,
+                spec.num_classes,
+            )
+            history = target_forgetting_history.setdefault(domain, [])
+            forgetting_row = {
+                "position": position,
+                "domain": domain,
+                "domain_name": domain_name,
+                "occurrence": len(history) + 1,
+                "is_repeat": bool(history),
+                "previous_position": history[-1]["position"] if history else None,
+                "intervening_domains": (
+                    position - history[-1]["position"] - 1 if history else None
+                ),
+                "samples": pre_visit_metrics["samples"],
+                "sample_set_sha256": _sample_set_digest(target_dataset.sample_ids),
+            }
+            for metric in TARGET_FORGETTING_METRICS:
+                current = pre_visit_metrics[metric]
+                first_occurrence = (
+                    history[0]["pre_visit"][metric] if history else current
+                )
+                forgetting_row[f"pre_visit_{metric}"] = current
+                forgetting_row[
+                    f"first_occurrence_pre_visit_{metric}"
+                ] = first_occurrence
+                forgetting_row[
+                    f"{metric}_change_from_first_occurrence_pp"
+                ] = (current - first_occurrence)
+                if history:
+                    previous = history[-1]["post_visit"][metric]
+                    first = history[0]["post_visit"][metric]
+                    best = max(item["post_visit"][metric] for item in history)
+                    forgetting_row[f"previous_post_visit_{metric}"] = previous
+                    forgetting_row[f"first_post_visit_{metric}"] = first
+                    forgetting_row[f"best_previous_post_visit_{metric}"] = best
+                    forgetting_row[f"{metric}_drop_from_previous_pp"] = (
+                        previous - current
+                    )
+                    forgetting_row[f"{metric}_drop_from_first_pp"] = first - current
+                    forgetting_row[f"{metric}_forgetting_from_best_pp"] = (
+                        best - current
+                    )
+                else:
+                    forgetting_row[f"previous_post_visit_{metric}"] = None
+                    forgetting_row[f"first_post_visit_{metric}"] = None
+                    forgetting_row[f"best_previous_post_visit_{metric}"] = None
+                    forgetting_row[f"{metric}_drop_from_previous_pp"] = None
+                    forgetting_row[f"{metric}_drop_from_first_pp"] = None
+                    forgetting_row[f"{metric}_forgetting_from_best_pp"] = None
         domain_meter = ClassificationMeter(spec.num_classes)
         post_adapt_meter = ClassificationMeter(spec.num_classes)
         source_meter = ClassificationMeter(spec.num_classes)
@@ -676,6 +974,37 @@ def run_experiment(args) -> Dict[str, Any]:
                 source_before["accuracy"] - retention["accuracy"]
             ),
         }
+        if forgetting_row is not None:
+            post_visit_metrics = evaluate_adapter(
+                adapter,
+                target_loader,
+                device,
+                spec.num_classes,
+            )
+            for metric in TARGET_FORGETTING_METRICS:
+                forgetting_row[f"post_visit_{metric}"] = post_visit_metrics[metric]
+            target_forgetting_history[domain].append(
+                {
+                    "position": position,
+                    "pre_visit": pre_visit_metrics,
+                    "post_visit": post_visit_metrics,
+                }
+            )
+            target_forgetting_rows.append(forgetting_row)
+            row.update(
+                {
+                    "target_domain_occurrence": forgetting_row["occurrence"],
+                    "target_forgetting_accuracy_drop_pp": forgetting_row[
+                        "accuracy_drop_from_previous_pp"
+                    ],
+                    "target_forgetting_accuracy_from_best_pp": forgetting_row[
+                        "accuracy_forgetting_from_best_pp"
+                    ],
+                    "target_accuracy_change_from_first_occurrence_pp": forgetting_row[
+                        "accuracy_change_from_first_occurrence_pp"
+                    ],
+                }
+            )
         domain_rows.append(row)
         print(
             f"[target {position:02d}/{len(target_domains):02d}] "
@@ -686,6 +1015,18 @@ def run_experiment(args) -> Dict[str, Any]:
             f"post_adapt_acc={post_metrics['accuracy']:.2f}% "
             f"source_retention={retention['accuracy']:.2f}%"
         )
+        if forgetting_row is not None and forgetting_row["is_repeat"]:
+            print(
+                f"[target forgetting] domain={domain} "
+                f"occurrence={forgetting_row['occurrence']} "
+                f"pre_visit_acc={forgetting_row['pre_visit_accuracy']:.2f}% "
+                f"drop_from_previous="
+                f"{forgetting_row['accuracy_drop_from_previous_pp']:+.2f}pp "
+                f"from_best="
+                f"{forgetting_row['accuracy_forgetting_from_best_pp']:+.2f}pp "
+                f"change_from_first="
+                f"{forgetting_row['accuracy_change_from_first_occurrence_pp']:+.2f}pp"
+            )
 
     online_metrics = overall.compute()
     post_metrics = post_adapt_overall.compute()
@@ -696,9 +1037,33 @@ def run_experiment(args) -> Dict[str, Any]:
         np.mean([row["post_adapt_accuracy"] for row in domain_rows])
     )
     final_retention = domain_rows[-1]["source_retention_accuracy"]
+    target_forgetting = (
+        _target_forgetting_summary(
+            target_forgetting_rows,
+            args.allow_target_sample_reuse,
+        )
+        if target_forgetting_enabled
+        else {"enabled": False}
+    )
+    if target_forgetting_enabled:
+        for occurrence_mean in target_forgetting["occurrence_means"]:
+            print(
+                "[target forgetting occurrence mean] "
+                f"occurrence={occurrence_mean['occurrence']} "
+                f"domains={occurrence_mean['domain_count']} "
+                f"pre_visit_acc={occurrence_mean['mean_pre_visit_accuracy']:.2f}% "
+                f"post_visit_acc={occurrence_mean['mean_post_visit_accuracy']:.2f}% "
+                f"change_from_first="
+                f"{occurrence_mean['mean_accuracy_change_from_first_occurrence_pp']:+.2f}pp"
+            )
     summary: Dict[str, Any] = {
         "protocol": {
-            "name": "online_continual_test_time_adaptation",
+            "name": (
+                "online_continual_target_forgetting"
+                if target_forgetting_enabled
+                else "online_continual_test_time_adaptation"
+            ),
+            "mode": args.protocol_mode,
             "source_domain": source_domain,
             "source_domain_name": spec.domain_name(source_domain),
             "source_domains": list(source_domains),
@@ -706,10 +1071,13 @@ def run_experiment(args) -> Dict[str, Any]:
                 spec.domain_name(domain) for domain in source_domains
             ],
             "target_domains": list(target_domains),
+            "configured_target_domains": list(configured_target_domains),
+            "target_domain_repeats": args.target_domain_repeats,
+            "allow_target_sample_reuse": args.allow_target_sample_reuse,
             "target_domain_names": [
                 spec.domain_name(domain) for domain in target_domains
             ],
-            "single_pass": True,
+            "single_pass": not target_forgetting_enabled,
             "reset_between_domains": False,
             "target_labels_used_for_adaptation": False,
             "primary_prediction_stage": (
@@ -780,6 +1148,7 @@ def run_experiment(args) -> Dict[str, Any]:
             ),
         },
         "adapter": adapter.statistics(),
+        "target_forgetting": target_forgetting,
         "domains": domain_rows,
         "run_dir": str(run_dir),
     }
@@ -794,6 +1163,16 @@ def run_experiment(args) -> Dict[str, Any]:
     _write_csv(run_dir / "source_baseline.csv", source_baseline_rows)
     _write_csv(run_dir / "domains.csv", domain_rows)
     _write_csv(run_dir / "predictions.csv", prediction_rows)
+    if target_forgetting_enabled:
+        _write_json(run_dir / "target_forgetting.json", target_forgetting)
+        _write_csv(
+            run_dir / "target_forgetting.csv",
+            target_forgetting_rows,
+        )
+        _write_csv(
+            run_dir / "target_forgetting_occurrences.csv",
+            target_forgetting["occurrence_means"],
+        )
     print(
         f"Online accuracy={online_metrics['accuracy']:.2f}% "
         f"post-adapt accuracy={post_metrics['accuracy']:.2f}% "

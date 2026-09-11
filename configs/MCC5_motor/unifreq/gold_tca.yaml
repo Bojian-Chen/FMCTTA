@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/MCC5_Motor_33domains_0p1s_custom/source/mcc5-motor-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: mcc5-motor-gold_tca

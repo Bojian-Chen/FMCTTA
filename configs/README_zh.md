@@ -92,7 +92,7 @@ configs/
 
 同样的三模型结构位于 `HUST_Gearbox/`、`MCC5_gearbox/`、`MCC5_motor/`、
 `SDUST_Bearing/` 和 `SDUST_Gear/`。UniFault/TF-ProFM 支持 source、kNN、TENT、NOTE、
-EATA、SAR、CoTTA、ViDA、RoTTA、TCA、GOLD 和 TTT；`continual_mae` 依赖 UniFreq 的
+EATA、SAR、CoTTA、ViDA、RoTTA、TCA、GOLD、GOLD-TCA 和 TTT；`continual_mae` 依赖 UniFreq 的
 global-FFT token，因此只保留在 `unifreq/`。TTT 的 `ttt.yaml` 会清空普通 source
 checkpoint，独立联合训练辅助头；其他适应方法先运行同一模型子目录的 `source.yaml`。
 
@@ -126,6 +126,8 @@ python main.py --config configs/PU/tf_profm/tca.yaml
 继承正确模型的 checkpoint；共享的 `methods/source.yaml` 会将该项覆盖为空字符串，以确保
 source 入口训练并保存新 checkpoint。若修改这三项或源模型设置，必须相应修改模型
 `base.yaml` 的 checkpoint 路径，或在命令行以 `--source_checkpoint` 覆盖它。
+GOLD-TCA 例外地使用 cosine classifier：先运行同目录的 `source_cosine.yaml`，再运行
+`gold_tca.yaml` 或 `gold_tca_prototype.yaml`；两个变体复用同一个 cosine checkpoint。
 
 ## `protocol`：实验协议与目标流
 
@@ -133,8 +135,11 @@ source 入口训练并保存新 checkpoint。若修改这三项或源模型设�
 | --- | --- | --- |
 | `dataset` | `PU`；`PU`、`WT`、`HUST`、`HUST_gear`、`MCC5_THU_Gearbox`、`MCC5_THU_Motor` | 使用内置数据集规格。设置 `dataset_manifest` 后会由清单中的动态数据集规格覆盖。 |
 | `domains` | 空，即使用数据集默认序列 | 未设置 `source_domains` 时是兼容旧配置的完整域序列：第一个域为 source，其余为 target。设置 `source_domains` 后只表示无标签目标流，并且必须显式填写。可写字符串 `"3,2,0,1"` 或 YAML 列表 `[3, 2, 0, 1]`；目标域允许重复。 |
-| `source_domains` | 空 | 可选的独立有标签源域列表；多个域会混合用于 source 训练和验证。设置后不得与 `domains` 重叠。SDUST-Bearing 默认使用 `[0, 1, 2, 3]`，即联合使用 1000 rpm 下四种负载。 |
-| `method` | `source`；`source`、`knn`、`tent`、`note`、`eata`、`sar`、`cotta`、`vida`、`continual_mae`、`rotta`、`tca`、`gold`、`ttt` | 实验方法。`source` 与 `knn` 不更新；TTT 先用当前 batch 的自监督任务更新再产生原生主预测；其余方法保留统一的更新前 online 指标与更新后诊断。 |
+| `source_domains` | 空 | 可选的独立有标签源域列表；多个域会混合用于 source 训练和验证。同一域可再次出现在 `domains`，但目标流只使用未进入 source train/validation 的 sample ID；同一 raw recording group 中的其他域仍不得作为 target。 |
+| `method` | `source`；`source`、`knn`、`tent`、`note`、`eata`、`sar`、`cotta`、`vida`、`continual_mae`、`rotta`、`tca`、`gold`、`gold_tca`、`ttt` | 实验方法。`source` 仅训练/加载并冻结评估 source model，不进入目标流；`knn` 在目标流中不更新；TTT 先用当前 batch 的自监督任务更新再产生原生主预测；其余方法保留统一的更新前 online 指标与更新后诊断。 |
+| `protocol_mode` | `standard`；`standard`、`target_forgetting` | `standard` 保持单遍 online CTTA；`target_forgetting` 重复目标序列，并在每个 domain occurrence 前后执行只读 probe。 |
+| `target_domain_repeats` | `1`，正整数 | forgetting 模式遍历 `domains` 的总轮数，包含第一轮；standard 和 source 模式忽略该项。 |
+| `allow_target_sample_reuse` | `false`；`false`、`true` | forgetting 模式下设为 `true` 时，同一域每次 occurrence 使用完全相同的 sample ID；否则跨 occurrence 无放回分配。 |
 | `stream_order` | `null`，即使用数据集的 `default_stream_order` | 每一个目标域内部的样本送入顺序：`class_block` 先完成一个类别再处理下一类；`interleaved` 按类别轮流取样；`shuffled` 将本目标流已选的全部样本随机混排。它只改变顺序，不改变各类被选样本数。PU/WT 的数据集基础配置显式设为 `shuffled`，以固定实验协议。 |
 | `stream_batch_size` | `16`，正整数 | 在线目标流的 batch 大小。适应方法通常每个 batch 更新一次（`adaptation_steps` 可增加同一 batch 的更新次数）；改变它会改变在线适应轨迹，不只是显存占用。 |
 | `seed` | `2025` | 随机种子，用于源域划分、样本选择/排序、模型随机性及数据加载等。相同环境和配置下有助于复现；不同硬件或底层库仍可能带来微小差异。 |
@@ -197,6 +202,33 @@ allow_repeated_target_samples: true
 ```
 
 此时每个出现位置仍在自身内部无放回抽样，但不同出现位置之间允许重叠；同一 seed 下该抽样可复现。
+
+### 历史目标域 forgetting
+
+```yaml
+protocol:
+  protocol_mode: target_forgetting
+  domains: [1, 2, 3]
+  target_domain_repeats: 2
+  allow_target_sample_reuse: true
+```
+
+实际流为 `[1,2,3,1,2,3]`。每次进入域前的 pre-visit probe 和完成该域适应后的
+post-visit probe 均调用 `adapter.predict`，不会更新模型、optimizer、EMA teacher、
+memory、prototype、适应统计或 counters。第二次及后续 occurrence 报告：
+
+```text
+drop_from_previous = 上次 post-visit - 本次 pre-visit
+drop_from_first = 首次 post-visit - 本次 pre-visit
+forgetting_from_best = 历史最佳 post-visit - 本次 pre-visit
+change_from_first_occurrence = 本次 pre-visit - 首次 pre-visit
+```
+
+前三项为正表示遗忘，最后一项为正表示相对首次进入时改善。三个分类指标均使用百分点。
+详细结果写入 `target_forgetting.json/csv`；各 occurrence 的跨域均值写入
+`target_forgetting_occurrences.csv`，并完整嵌入 `summary.json -> target_forgetting`。
+适配运行目录为 `<run_name>-<protocol_mode>-seed<seed>`；source-only 仍保留
+`<run_name>-seed<seed>`，且忽略 forgetting 控制项。
 
 ## `model`：基础模型、分类头与源域训练
 
@@ -364,7 +396,7 @@ LayerNorm 仿射参数。
 | --- | --- | --- |
 | `device` | `auto` | 运行设备。`auto` 自动选择可用 CUDA，否则 CPU；也可写 `cpu`、`cuda` 或 `cuda:0` 等 PyTorch 设备字符串。 |
 | `workers` | `0`，非负整数 | PyTorch 数据加载工作进程数。`0` 表示在主进程加载，最易调试；增加后可能提高吞吐，但也会增加进程和内存开销。 |
-| `output_dir` | 项目下的 `outputs` | 实验输出根目录。每次运行在其中按 `数据集/方法/运行名-seed` 创建目录，写入配置、checkpoint、预测和指标文件。`base.yaml` 写的是相对路径 `outputs`，其解析相对于启动命令的当前工作目录。 |
+| `output_dir` | 项目下的 `outputs` | 实验输出根目录。适配运行按 `数据集/方法/运行名-protocol_mode-seed` 创建目录；source-only 保留 `数据集/source/运行名-seed`。`base.yaml` 中的相对路径按启动命令的当前工作目录解析。 |
 | `run_name` | 当前时间戳 | 本次运行名称。建议显式设置为能表达数据集、方法和关键消融项的名称，避免多次运行难以区分。 |
 
 ## 常见组合与限制
@@ -390,12 +422,23 @@ GOLD 使用 Adam，默认更新全部基础模型参数、低秩缩放向量和�
 从 source train 计算类别原型，额外 source warm-up 默认关闭。参数与官方实现差异见
 [docs/GOLD_ZH.md](../docs/GOLD_ZH.md)。
 
+### GOLD-TCA
+
+`gold_tca.yaml` 默认使用冻结 cosine classifier weight 作为 semantic anchor、固定
+source topology 和 Golden Subspace AGOP 初始化，不读取 source prototypes；动态 AGOP
+仍来自高置信 target samples。`gold_tca_prototype.yaml` 改为 source prototype 初始化并
+维护跨 batch/domain 的 EMA prototype memory。两者都加载同目录 `source_cosine.yaml`
+产生的同一个 checkpoint。`gold_tca_agop_init` 可取 `classifier_weights`（默认）或
+`source_prototypes`；另有 `gold_tca_lambda_topology` 和
+`gold_tca_centroid_momentum`。算法细节见
+[docs/GOLD_TCA_ZH.md](../docs/GOLD_TCA_ZH.md)。
+
 ### Source 全域诊断与 TTA 对比
 
-`protocol.source_eval_domains` 默认 `sources`，也支持 `all`、`targets` 或域 ID 列表。
-source 训练结束后输出独立的 `source_evaluation.csv/json`；源域使用验证集。默认不在
-正式 target stream 前重复评估目标域；显式选择 `all` 或 `targets` 时，非源域使用
-全域样本且不应用目标采样上限。
+`protocol.source_eval_domains` 默认 `all`，也支持 `sources`、`targets` 或域 ID 列表。
+source 训练结束后输出独立的 `source_evaluation.csv/json`；源域使用验证集，非源域使用
+全域样本且不应用目标采样上限。`method: source` 在该冻结评估后直接结束，不构建 adapter，
+也不执行 target online stream。
 
 TTA 自动对本次实际目标样本运行冻结 source classifier，生成 `source_baseline.csv/json`，
 并在 `domains.csv` / `summary.json` 中增加百分点提升和相对提升。支持域子集、重排、

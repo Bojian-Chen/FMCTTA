@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Comma-separated domain sequence. Without --source_domains, the "
             "first domain is the labeled source and the remainder are unlabeled "
             "online targets. With --source_domains, this contains only the "
-            "target stream. Uses the dataset default when omitted."
+            "target stream. Uses the dataset default when omitted. Targets may repeat."
         ),
     )
     protocol.add_argument(
@@ -39,8 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help=(
             "Comma-separated labeled source domains combined for supervised "
-            "training. When set, --domains is the target stream and the two "
-            "sets must not overlap."
+            "training. When set, --domains is the target stream; overlapping "
+            "domains use samples not selected for source training/validation."
         ),
     )
     protocol.add_argument(
@@ -64,6 +64,33 @@ def build_parser() -> argparse.ArgumentParser:
         default="source",
     )
     protocol.add_argument(
+        "--protocol_mode",
+        choices=["standard", "target_forgetting"],
+        default="standard",
+        help=(
+            "standard runs the target stream normally; target_forgetting "
+            "adds read-only probes before and after every target occurrence "
+            "and measures performance drops when domains repeat"
+        ),
+    )
+    protocol.add_argument(
+        "--target_domain_repeats",
+        type=int,
+        default=1,
+        help=(
+            "Total traversals of the configured target-domain sequence in "
+            "target_forgetting mode, including the first traversal"
+        ),
+    )
+    protocol.add_argument(
+        "--allow_target_sample_reuse",
+        action="store_true",
+        help=(
+            "In target_forgetting mode, reuse the exact same target samples "
+            "whenever the domain sequence repeats"
+        ),
+    )
+    protocol.add_argument(
         "--stream_order",
         choices=["shuffled", "class_block", "interleaved"],
         default=None,
@@ -72,11 +99,10 @@ def build_parser() -> argparse.ArgumentParser:
     protocol.add_argument("--seed", type=int, default=2025)
     protocol.add_argument(
         "--source_eval_domains",
-        default="sources",
+        default="all",
         help=(
-            "Source-model diagnostics after training (or in source mode): "
-            "sources, all, targets, or comma-separated domain IDs. The default "
-            "avoids evaluating target domains again before the online stream; "
+            "Frozen source-model diagnostics: sources, all, targets, or "
+            "comma-separated domain IDs. The default evaluates all domains; "
             "labeled source domains use held-out validation samples."
         ),
     )
@@ -288,7 +314,13 @@ def build_parser() -> argparse.ArgumentParser:
     adaptation.add_argument("--gold_tca_lambda_topology", type=float, default=0.15)
     adaptation.add_argument("--gold_tca_centroid_momentum", type=float, default=0.9)
     adaptation.add_argument(
-        "--gold_tca_uniformity_temperature", type=float, default=2.0
+        "--gold_tca_agop_init",
+        choices=["classifier_weights", "source_prototypes"],
+        default="classifier_weights",
+        help=(
+            "GOLD-TCA mode: classifier-weight anchors and target-sample AGOP, "
+            "or persistent source-initialized prototype memory"
+        ),
     )
     adaptation.add_argument("--tca_teacher_momentum", type=float, default=0.999)
     adaptation.add_argument("--tca_centroid_momentum", type=float, default=0.9)
@@ -539,6 +571,12 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError(f"These arguments must be positive: {', '.join(invalid)}")
     if args.workers < 0:
         raise ValueError("workers cannot be negative")
+    if (
+        args.method != "source"
+        and args.protocol_mode == "target_forgetting"
+        and args.target_domain_repeats < 1
+    ):
+        raise ValueError("target_domain_repeats must be positive")
     if args.source_backbone_lr_scale < 0:
         raise ValueError("source_backbone_lr_scale cannot be negative")
     if args.model_input_length < 0:
@@ -622,8 +660,6 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("gold_tca_lambda_topology cannot be negative")
     if not 0 <= args.gold_tca_centroid_momentum < 1:
         raise ValueError("gold_tca_centroid_momentum must be in [0, 1)")
-    if args.gold_tca_uniformity_temperature <= 0:
-        raise ValueError("gold_tca_uniformity_temperature must be positive")
     if not 0 <= args.rotta_nu <= 1:
         raise ValueError("rotta_nu must be in [0, 1]")
     if not 0 <= args.rotta_bn_alpha <= 1:

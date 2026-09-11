@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/WT_1024point_custom/source/wt-tf-profm-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: wt-tf-profm-gold_tca

@@ -1,0 +1,7 @@
+# Frozen-source preparation shared by both GOLD-TCA variants.
+protocol:
+  method: source
+
+model:
+  classifier: cosine
+  source_checkpoint: ""

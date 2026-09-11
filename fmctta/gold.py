@@ -65,7 +65,7 @@ class GOLDAdapter(OnlineAdapter):
         device: torch.device,
         learning_rate: float,
         num_classes: int,
-        source_prototypes: torch.Tensor,
+        source_prototypes: Optional[torch.Tensor],
         steps: int = 1,
         weight_decay: float = 0.0,
         parameter_scope: str = "all",
@@ -83,11 +83,19 @@ class GOLDAdapter(OnlineAdapter):
         augmentation_scale_std: float = 0.05,
         augmentation_mask_probability: float = 0.0,
         augmentation_shift_ratio: float = 0.0,
+        freeze_classifier: bool = False,
+        agop_initialization: str = "source_prototypes",
     ) -> None:
-        if source_prototypes.ndim != 2 or source_prototypes.shape[0] != num_classes:
-            raise ValueError("GOLD prototypes must have shape [classes, features]")
-        if not torch.isfinite(source_prototypes).all():
-            raise ValueError("GOLD source prototypes must be finite")
+        if agop_initialization not in {"source_prototypes", "classifier_weights"}:
+            raise ValueError(
+                "GOLD AGOP initialization must be source_prototypes or "
+                "classifier_weights"
+            )
+        if source_prototypes is not None:
+            if source_prototypes.ndim != 2 or source_prototypes.shape[0] != num_classes:
+                raise ValueError("GOLD prototypes must have shape [classes, features]")
+            if not torch.isfinite(source_prototypes).all():
+                raise ValueError("GOLD source prototypes must be finite")
         if min(top_r, update_every, projection_dim, steps) < 1:
             raise ValueError(
                 "GOLD rank, update interval, projection and steps must be positive"
@@ -104,14 +112,48 @@ class GOLDAdapter(OnlineAdapter):
             raise ValueError("GOLD requires at least one nonzero loss weight")
         super().__init__(copy.deepcopy(model), device)
         parameters, names = configure_gradient_adaptation(self.model, parameter_scope)
+        if freeze_classifier:
+            classifier_parameter_ids = {
+                id(parameter) for parameter in self.model.head.parameters()
+            }
+            selected = [
+                (parameter, name)
+                for parameter, name in zip(parameters, names)
+                if id(parameter) not in classifier_parameter_ids
+            ]
+            parameters = [parameter for parameter, _ in selected]
+            names = [name for _, name in selected]
+            self.model.head.requires_grad_(False)
         self.parameter_scope = parameter_scope
         self.parameter_names = tuple(names)
+        self.classifier_frozen = freeze_classifier
         self.teacher = copy.deepcopy(self.model).eval().requires_grad_(False)
+        head_weight = getattr(self.model.head, "weight", None)
+        if head_weight is not None and head_weight.ndim == 2:
+            self.feature_dim = int(head_weight.shape[1])
+        elif source_prototypes is not None:
+            # FMCTTA's MLP classifier is a Sequential module without a direct
+            # weight attribute, so ordinary GOLD retains prototype inference.
+            self.feature_dim = int(source_prototypes.shape[1])
+        else:
+            raise ValueError(
+                "GOLD without source prototypes requires a classifier with a 2-D weight"
+            )
+        if source_prototypes is None:
+            if agop_initialization == "source_prototypes":
+                raise ValueError(
+                    "GOLD source-prototype AGOP initialization requires prototypes"
+                )
+            source_prototypes = head_weight.new_empty((0, self.feature_dim))
+        elif source_prototypes.shape[1] != self.feature_dim:
+            raise ValueError(
+                "GOLD prototype feature dimension must match the classifier weight"
+            )
         self.register_buffer(
             "source_prototypes",
             source_prototypes.detach().to(device=device, dtype=torch.float32).clone(),
         )
-        self.feature_dim = source_prototypes.shape[1]
+        self.agop_initialization = agop_initialization
         self.top_r = min(top_r, self.feature_dim)
         self.alpha = alpha
         self.conf_thresh = conf_thresh
@@ -153,14 +195,15 @@ class GOLDAdapter(OnlineAdapter):
         self.warmup_updates = 0
 
     @torch.enable_grad()
-    def _initial_agop(self) -> torch.Tensor:
-        head = self.model.head
-        if isinstance(head, nn.Linear):
-            weights = head.weight.detach().float()
-            return weights.T @ weights
-        # Extension for nonlinear heads: average J(f)^T J(f) over source means.
-        features = self.source_prototypes.detach().float().requires_grad_(True)
-        logits = head(features)
+    def prototype_agop(self, prototypes: torch.Tensor) -> torch.Tensor:
+        """Compute the classifier AGOP evaluated at class prototypes."""
+
+        if prototypes.ndim != 2 or prototypes.shape[1] != self.feature_dim:
+            raise ValueError("GOLD prototypes must be a [classes, features] tensor")
+        if prototypes.shape[0] == 0:
+            raise ValueError("GOLD prototype AGOP requires at least one prototype")
+        features = prototypes.detach().float().requires_grad_(True)
+        logits = self.model.head(features)
         result = features.new_zeros(self.feature_dim, self.feature_dim)
         for index in range(logits.shape[1]):
             gradients = torch.autograd.grad(
@@ -171,6 +214,21 @@ class GOLDAdapter(OnlineAdapter):
             result.add_(gradients.T @ gradients / features.shape[0])
         return result.detach()
 
+    @torch.enable_grad()
+    def _initial_agop(self) -> torch.Tensor:
+        head = self.model.head
+        if self.agop_initialization == "classifier_weights":
+            if not hasattr(head, "weight") or head.weight.ndim != 2:
+                raise ValueError(
+                    "GOLD classifier-weight AGOP requires a 2-D classifier weight"
+                )
+            weights = F.normalize(head.weight.detach().float(), dim=1)
+            return weights.T @ weights
+        if isinstance(head, nn.Linear):
+            weights = head.weight.detach().float()
+            return weights.T @ weights
+        return self.prototype_agop(self.source_prototypes)
+
     @torch.no_grad()
     def _eigenbasis(self) -> torch.Tensor:
         _, vectors = torch.linalg.eigh(self.agop)
@@ -179,14 +237,31 @@ class GOLDAdapter(OnlineAdapter):
     def apply_adapter(self, features: torch.Tensor) -> torch.Tensor:
         return features + ((features @ self.basis) * self.adapter_scale) @ self.basis.T
 
-    def additional_regularization(
+    def adaptation_regularizer(
         self,
         adapted_features: torch.Tensor,
-        student_logits: torch.Tensor,
+        logits: torch.Tensor,
+        gold_loss: torch.Tensor,
     ) -> torch.Tensor:
         """Hook for GOLD variants that constrain the adapted feature geometry."""
 
-        return adapted_features.sum() * 0.0
+        return gold_loss.new_zeros(())
+
+    @torch.no_grad()
+    def contrastive_anchors(
+        self,
+        adapted_features: torch.Tensor,
+        logits: torch.Tensor,
+    ) -> torch.Tensor:
+        """Return GOLD's nearest source-prototype semantic anchors."""
+
+        if self.source_prototypes.shape[0] == 0:
+            raise RuntimeError("GOLD source-prototype anchors are unavailable")
+        nearest = (
+            F.normalize(adapted_features, dim=1)
+            @ F.normalize(self.source_prototypes, dim=1).T
+        ).argmax(1)
+        return self.source_prototypes[nearest]
 
     @torch.enable_grad()
     def batch_agop(
@@ -248,10 +323,7 @@ class GOLDAdapter(OnlineAdapter):
             )
             with torch.no_grad():
                 targets = self.teacher(inputs)
-                nearest = (
-                    F.normalize(adapted, dim=1)
-                    @ F.normalize(self.source_prototypes, dim=1).T
-                ).argmax(1)
+                anchors = self.contrastive_anchors(adapted, outputs)
             if online_outputs is None:
                 online_outputs = (outputs + targets).detach()
             loss = (
@@ -264,13 +336,13 @@ class GOLDAdapter(OnlineAdapter):
             )
             if self.lambda_cont > 0:
                 views = torch.stack(
-                    (self.source_prototypes[nearest], adapted, augmented), dim=1
+                    (anchors, adapted, augmented), dim=1
                 )
                 loss = loss + self.lambda_cont * multiview_contrastive_loss(
                     self.projector(views),
                     self.temperature,
                 )
-            loss = loss + self.additional_regularization(adapted, outputs)
+            loss = loss + self.adaptation_regularizer(adapted, outputs, loss)
             batch_matrix = self.batch_agop(features, outputs)
             self.adaptation_iterations += 1
             if torch.isfinite(loss):
@@ -323,6 +395,8 @@ class GOLDAdapter(OnlineAdapter):
             agop_updates=self.agop_updates,
             basis_updates=self.basis_updates,
             warmup_updates=self.warmup_updates,
+            classifier_frozen=self.classifier_frozen,
+            agop_initialization=self.agop_initialization,
             source_prototype_classes=self.source_prototypes.shape[0],
         )
         return values

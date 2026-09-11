@@ -302,7 +302,7 @@ protocol:
 ### 5.4 方法与指标
 
 建议至少比较 Source、kNN、TENT、EATA、SAR、CoTTA、NOTE、RoTTA、TTT、
-Continual-MAE、TCA 与 GOLD。除需要额外 source 训练头的方法外，其余方法应复用相同的 source
+Continual-MAE、TCA、GOLD 与 GOLD-TCA。除需要额外 source 训练头的方法外，其余方法应复用相同的 source
 checkpoint。
 
 建议同时报告：
@@ -342,8 +342,9 @@ python -m ctta_data_builder.build \
 ```
 
 构建后以生成的 manifest 为准。source 与 target 域由实验 YAML 决定；JSON 中 domain 的
-排列只决定编号，不会自动指定哪个域必须是 source 或 target。同一个 domain ID 不能
-同时出现在 `source_domains` 和 `domains` 中。
+排列只决定编号，不会自动指定哪个域必须是 source 或 target。同一个 domain ID 可以
+同时出现在 `source_domains` 和 `domains` 中；此时 target 只使用未进入 source train
+或 validation 的 sample ID。同一 raw recording group 中的其他域仍受防泄漏约束。
 
 ### GOLD
 
@@ -357,17 +358,31 @@ python main.py --config configs/SDUST_Bearing/unifault/gold.yaml
 GOLD 会从 source train 提取类别原型，目标流不读取标签；参数与移植差异见
 [GOLD_ZH.md](GOLD_ZH.md)。
 
+### GOLD-TCA
+
+先训练该 foundation model 对应的 cosine source classifier，再让默认模式和 prototype
+变体复用同一个 checkpoint：
+
+```bash
+python main.py --config configs/SDUST_Bearing/unifault/source_cosine.yaml
+python main.py --config configs/SDUST_Bearing/unifault/gold_tca.yaml
+python main.py --config configs/SDUST_Bearing/unifault/gold_tca_prototype.yaml
+```
+
+默认模式不计算 source prototypes，使用冻结 classifier weights 作为 semantic anchor、
+source topology 和 AGOP 初始化；prototype 变体维护 target-updated EMA memory。详见
+[GOLD_TCA_ZH.md](GOLD_TCA_ZH.md)。
+
 ## Source 各域表现与 TTA 相对提升
 
-Source 训练结束、选定最佳 checkpoint 后，默认只额外评估源域验证集；目标域由随后
-的正式 online stream 评估一次，避免重复前向计算。该诊断不会把测试域加入训练，也
-不会根据测试域指标选择 checkpoint。需要独立的完整目标域诊断时，仍可显式选择
-`all` 或 `targets`；这些诊断不受 `target_samples_per_class` 或
-`max_target_per_domain` 限制。
+Source 训练结束、选定最佳 checkpoint 后，默认冻结评估所有域；源域只使用 held-out
+validation，非源域使用完整域。该诊断不会把测试域加入训练，也不会根据测试域指标
+选择 checkpoint，并且不受 `target_samples_per_class` 或 `max_target_per_domain` 限制。
+`method: source` 在诊断后直接结束，不构建 adapter，也不进入 online target stream。
 
 ```yaml
 protocol:
-  source_eval_domains: sources  # 默认；也可写 all、targets 或 [4, 8, 12]
+  source_eval_domains: all  # 默认；也可写 sources、targets 或 [4, 8, 12]
 ```
 
 - `sources`：仅评估各源域的 held-out validation 样本。
@@ -389,7 +404,8 @@ python main.py --config configs/SDUST_Bearing/unifault/gold.yaml --domains 12,4,
 ```
 
 `source_domains` 仍代表训练域，`domains` 在显式设置 `source_domains` 时仅代表目标流。
-不要为全域诊断把训练域塞进 `domains`，使用 `source_eval_domains` 即可。
+若训练域再次出现在 target stream，必须为 source 选择保留足够的未见样本；仅做全域
+诊断时使用 `source_eval_domains`，无需把训练域塞进 `domains`。
 TTA 可删减、重排目标域，也可按现有重复域采样规则重复某域；不同出现次数分别记录。
 
 ### 精确匹配与输出

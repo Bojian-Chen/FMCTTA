@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/PU_0p1s_custom/source/pu-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: pu-gold_tca

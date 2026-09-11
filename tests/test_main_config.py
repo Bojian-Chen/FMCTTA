@@ -126,6 +126,57 @@ def test_yaml_source_domains_are_independent_from_target_domains(
     assert args.domains == "1"
 
 
+def test_source_evaluation_defaults_to_all_domains() -> None:
+    assert parse_args([]).source_eval_domains == "all"
+
+
+def test_target_forgetting_protocol_mode_is_configurable(tmp_path: Path) -> None:
+    config = tmp_path / "forgetting.yaml"
+    config.write_text(
+        "protocol:\n"
+        "  protocol_mode: target_forgetting\n"
+        "  domains: [0, 1, 2]\n"
+        "  target_domain_repeats: 3\n"
+        "  allow_target_sample_reuse: true\n",
+        encoding="utf-8",
+    )
+
+    args = parse_args(["--config", str(config)])
+
+    assert args.protocol_mode == "target_forgetting"
+    assert args.domains == "0,1,2"
+    assert args.target_domain_repeats == 3
+    assert args.allow_target_sample_reuse is True
+
+
+def test_target_repeat_options_are_ignored_in_standard_mode() -> None:
+    args = parse_args(
+        [
+            "--method",
+            "tent",
+            "--target_domain_repeats",
+            "0",
+            "--allow_target_sample_reuse",
+        ]
+    )
+    validate_args(args)
+
+
+def test_source_mode_ignores_target_repeat_controls() -> None:
+    args = parse_args(
+        [
+            "--method",
+            "source",
+            "--protocol_mode",
+            "target_forgetting",
+            "--target_domain_repeats",
+            "0",
+            "--allow_target_sample_reuse",
+        ]
+    )
+    validate_args(args)
+
+
 def test_yaml_config_rejects_unknown_options(tmp_path: Path) -> None:
     config = tmp_path / "invalid.yaml"
     config.write_text("model:\n  not_an_option: 1\n", encoding="utf-8")
@@ -235,6 +286,8 @@ def test_dataset_yaml_directories_are_grouped_by_foundation_model() -> None:
         "tca",
         "gold",
         "gold_tca",
+        "gold_tca_prototype",
+        "source_cosine",
         "ttt",
     }
 
@@ -297,6 +350,8 @@ def test_phmfd_yaml_matrix_is_complete_and_valid(
         assert {path.stem for path in family_root.glob("*.yaml")} == {
             "base",
             *methods,
+            "gold_tca_prototype",
+            "source_cosine",
         }
 
         for method in methods:
@@ -312,8 +367,13 @@ def test_phmfd_yaml_matrix_is_complete_and_valid(
             assert args.feature_branch == "fused"
             assert args.method == method
             assert args.run_name == f"{dataset_tag}-{run_tag}-{method}"
-            if method in {"source", "ttt", "gold_tca"}:
+            if method in {"source", "ttt"}:
                 assert args.source_checkpoint == ""
+            elif method == "gold_tca":
+                assert args.classifier == "cosine"
+                assert f"{dataset_tag}-{run_tag}-source-cosine-seed2025" in Path(
+                    args.source_checkpoint
+                ).parts
             else:
                 assert f"{dataset_tag}-{run_tag}-source-seed2025" in Path(
                     args.source_checkpoint

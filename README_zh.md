@@ -18,7 +18,7 @@ FMCTTA 首先用一个有标签源域为预训练故障基础模型训练下游�
 
 - 可从 Hugging Face 加载 UniFreq，也可直接读取 PHMFD `log` 中的 UniFault、
   TF-ProFM 预训练 checkpoint；无需重新预训练。
-- 支持 Source-only、源域 kNN、TENT、NOTE、EATA、SAR、CoTTA、ViDA、Continual-MAE、RoTTA、TCA、GOLD 和经典 TTT。
+- 支持 Source-only、源域 kNN、TENT、NOTE、EATA、SAR、CoTTA、ViDA、Continual-MAE、RoTTA、TCA、GOLD、GOLD-TCA 和经典 TTT。
 - 目标标签不会传入任何适配器，只在预测完成后用于计算评估指标。
 - 严格采用单遍目标流，并记录跨域源域遗忘。
 - 源域模型使用 `safetensors` 保存，同时输出逐域、逐样本和在线/适配后指标。
@@ -203,7 +203,7 @@ python main.py \
 `configs/MCC5_gearbox`、`configs/MCC5_motor`、`configs/SDUST_Bearing` 和
 `configs/SDUST_Gear`。每个数据集目录都分为 `unifreq/`、`unifault/` 和 `tf_profm/`：
 三者分别提供 UniFreq、UniFault-small 与 TF-ProFM 配置。UniFault-small 和 TF-ProFM
-包含 source、kNN、TENT、NOTE、EATA、SAR、CoTTA、ViDA、RoTTA、TCA、GOLD 和 TTT；
+包含 source、kNN、TENT、NOTE、EATA、SAR、CoTTA、ViDA、RoTTA、TCA、GOLD、GOLD-TCA 和 TTT；
 Continual-MAE 只位于 `unifreq/`。
 详细的目录、运行顺序和参数说明见 [`configs/README_zh.md`](configs/README_zh.md)。
 例如，先训练 PU 的源模型，再运行 TENT：
@@ -278,6 +278,8 @@ python main.py \
 | `domains.csv` | 各域在线/适配后指标和源域保持率 |
 | `predictions.csv` | 样本 ID、真实标签、预测与置信度 |
 | `summary.json` | 协议声明与汇总结果 |
+| `target_forgetting.csv/json` | forgetting 模式下每个域 occurrence 的 pre/post probe 与遗忘指标 |
+| `target_forgetting_occurrences.csv` | forgetting 模式下按 occurrence 聚合的跨域均值 |
 
 ## 测试
 
@@ -291,3 +293,5 @@ pytest
 本项目使用 [MIT License](LICENSE)。
 
 GOLD 的运行方式、参数和移植差异见 [docs/GOLD_ZH.md](docs/GOLD_ZH.md)。
+GOLD-TCA 的冻结 classifier topology、两种 AGOP/anchor 模式和配套 cosine source
+checkpoint 见 [docs/GOLD_TCA_ZH.md](docs/GOLD_TCA_ZH.md)。

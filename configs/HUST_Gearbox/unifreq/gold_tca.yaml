@@ -3,5 +3,8 @@ base:
   - base.yaml
   - ../../methods/gold_tca.yaml
 
+model:
+  source_checkpoint: outputs/HUST_Gearbox_0p1s_custom/source/hust-gearbox-source-cosine-seed2025/source_checkpoint
+
 runtime:
   run_name: hust-gearbox-gold_tca

@@ -1,8 +1,8 @@
 # Shared source-only protocol. Compose after a dataset/model base.
 protocol:
   method: source
-  # Diagnose held-out source domains only; targets are evaluated by the stream.
-  source_eval_domains: sources
+  # Frozen diagnostics cover held-out source validation and every other domain.
+  source_eval_domains: all
 
 model:
   # A source run trains a fresh downstream model instead of loading one.

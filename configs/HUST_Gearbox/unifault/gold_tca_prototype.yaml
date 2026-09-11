@@ -1,0 +1,7 @@
+# Persistent prototype-memory GOLD-TCA mode; reuses source_cosine.yaml.
+base:
+  - gold_tca.yaml
+  - ../../methods/gold_tca_prototype.yaml
+
+runtime:
+  run_name: hust-gearbox-unifault-small-gold_tca-prototype

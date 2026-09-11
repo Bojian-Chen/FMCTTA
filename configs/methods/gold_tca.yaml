@@ -4,10 +4,7 @@ protocol:
 
 model:
   classifier: cosine
-  # A cosine source classifier must be trained before GOLD-TCA adaptation.
-  # Dataset profiles clear the inherited linear source checkpoint and train it
-  # in the same run; set this to a compatible cosine checkpoint to reuse one.
-  source_checkpoint: ""
+  # Dataset/model profiles point this at their matching source_cosine run.
 
 adaptation:
   adaptation_learning_rate: 0.001
@@ -31,4 +28,6 @@ adaptation:
   gold_warmup_steps: 0
   gold_tca_lambda_topology: 0.15
   gold_tca_centroid_momentum: 0.9
-  gold_tca_uniformity_temperature: 2.0
+  # classifier_weights is the default; source_prototypes enables the
+  # source-initialized persistent prototype-memory variant.
+  gold_tca_agop_init: classifier_weights
