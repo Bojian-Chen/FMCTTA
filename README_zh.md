@@ -148,6 +148,11 @@ python main.py \
 TENT、NOTE、EATA、SAR、CoTTA、ViDA、RoTTA、TCA 或 TTT，但加载时必须保持同一
 `foundation_model` 和模型结构。
 
+数据层也支持 `--normalization sample_zscore` 和
+`--normalization sample_minmax`，它们分别对每个样本、每个通道沿时间轴独立处理。
+UniFault/TF-ProFM 默认还会执行模型侧逐样本归一化；若启用数据层 `sample_*`，可按实验
+目的决定是否同时把 `--model_input_normalization` 设为 `none`，避免重复归一化。
+
 源域 checkpoint 会保存在：
 
 ```text

@@ -58,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
             "rotta",
             "tca",
             "gold",
+            "gold_tca",
             "ttt",
         ],
         default="source",
@@ -71,11 +72,12 @@ def build_parser() -> argparse.ArgumentParser:
     protocol.add_argument("--seed", type=int, default=2025)
     protocol.add_argument(
         "--source_eval_domains",
-        default="all",
+        default="sources",
         help=(
             "Source-model diagnostics after training (or in source mode): "
-            "all, targets, or comma-separated domain IDs. Independent of the "
-            "TTA stream; labeled source domains use held-out validation samples."
+            "sources, all, targets, or comma-separated domain IDs. The default "
+            "avoids evaluating target domains again before the online stream; "
+            "labeled source domains use held-out validation samples."
         ),
     )
 
@@ -95,9 +97,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     data.add_argument(
         "--normalization",
-        choices=["zscore", "minmax", "none"],
+        choices=[
+            "zscore",
+            "minmax",
+            "sample_zscore",
+            "sample_minmax",
+            "none",
+        ],
         default="none",
-        help="Optional statistics fitted only on source-train",
+        help=(
+            "Input normalization: zscore/minmax fit source-train statistics; "
+            "sample_zscore/sample_minmax normalize each sample and channel "
+            "independently along time"
+        ),
     )
     data.add_argument("--source_validation_ratio", type=float, default=0.2)
     data.add_argument("--strict_data", action="store_true")
@@ -234,7 +246,8 @@ def build_parser() -> argparse.ArgumentParser:
         default="default",
         help=(
             "default is LayerNorm for TENT/NOTE/EATA/SAR and all base parameters "
-            "for CoTTA/ViDA/Continual-MAE/TCA/GOLD; TTT defaults to the backbone, "
+            "for CoTTA/ViDA/Continual-MAE/TCA/GOLD/GOLD-TCA; TTT defaults "
+            "to the backbone, "
             "while RoTTA defaults to LayerNorm; source and kNN do not adapt"
         ),
     )
@@ -272,6 +285,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     adaptation.add_argument("--gold_augmentation_shift_ratio", type=float, default=0.0)
     adaptation.add_argument("--gold_warmup_steps", type=int, default=0)
+    adaptation.add_argument("--gold_tca_lambda_topology", type=float, default=0.15)
+    adaptation.add_argument("--gold_tca_centroid_momentum", type=float, default=0.9)
+    adaptation.add_argument(
+        "--gold_tca_uniformity_temperature", type=float, default=2.0
+    )
     adaptation.add_argument("--tca_teacher_momentum", type=float, default=0.999)
     adaptation.add_argument("--tca_centroid_momentum", type=float, default=0.9)
     adaptation.add_argument(
@@ -593,6 +611,19 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("GOLD loss weights cannot be negative")
     if args.gold_lambda_ce_trg + args.gold_lambda_cont == 0:
         raise ValueError("GOLD requires at least one nonzero loss weight")
+    if args.method == "gold_tca" and args.classifier != "cosine":
+        raise ValueError("gold_tca requires --classifier cosine")
+    if (
+        args.method == "gold_tca"
+        and args.adaptation_parameter_scope == "classifier"
+    ):
+        raise ValueError("gold_tca freezes the classifier parameter scope")
+    if args.gold_tca_lambda_topology < 0:
+        raise ValueError("gold_tca_lambda_topology cannot be negative")
+    if not 0 <= args.gold_tca_centroid_momentum < 1:
+        raise ValueError("gold_tca_centroid_momentum must be in [0, 1)")
+    if args.gold_tca_uniformity_temperature <= 0:
+        raise ValueError("gold_tca_uniformity_temperature must be positive")
     if not 0 <= args.rotta_nu <= 1:
         raise ValueError("rotta_nu must be in [0, 1]")
     if not 0 <= args.rotta_bn_alpha <= 1:

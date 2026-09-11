@@ -155,8 +155,18 @@ class FaultDataModule:
             raise ValueError("representation must be 'time' or 'frequency'")
         if self.input_dimension not in {"1d", "2d"}:
             raise ValueError("input_dimension must be '1d' or '2d'")
-        if self.normalization not in {"zscore", "minmax", "none"}:
-            raise ValueError("normalization must be zscore, minmax, or none")
+        normalizations = {
+            "zscore",
+            "minmax",
+            "sample_zscore",
+            "sample_minmax",
+            "none",
+        }
+        if self.normalization not in normalizations:
+            raise ValueError(
+                "normalization must be zscore, minmax, sample_zscore, "
+                "sample_minmax, or none"
+            )
         if self.stream_order not in {"shuffled", "class_block", "interleaved"}:
             raise ValueError(
                 "stream_order must be shuffled, class_block, or interleaved"
@@ -325,6 +335,8 @@ class FaultDataModule:
         return signals.astype(np.float32, copy=False)
 
     def _fit_normalizer(self, source_train_ids: np.ndarray) -> Dict[str, np.ndarray]:
+        if self.normalization in {"sample_zscore", "sample_minmax"}:
+            return {}
         source = self._represent(self.raw_signals[source_train_ids])
         if self.normalization == "zscore":
             return {
@@ -344,8 +356,16 @@ class FaultDataModule:
 
     def _transform(self, signals: np.ndarray) -> torch.Tensor:
         transformed = self._represent(signals)
-        scale = np.maximum(self._normalizer["scale"], 1e-6)
-        transformed = (transformed - self._normalizer["offset"]) / scale
+        if self.normalization == "sample_zscore":
+            offset = transformed.mean(axis=-1, keepdims=True)
+            scale = transformed.std(axis=-1, keepdims=True)
+        elif self.normalization == "sample_minmax":
+            offset = transformed.min(axis=-1, keepdims=True)
+            scale = transformed.max(axis=-1, keepdims=True) - offset
+        else:
+            offset = self._normalizer["offset"]
+            scale = self._normalizer["scale"]
+        transformed = (transformed - offset) / np.maximum(scale, 1e-6)
         tensor = torch.from_numpy(np.ascontiguousarray(transformed)).float()
         if tensor.ndim == 2:
             tensor = tensor.unsqueeze(1)

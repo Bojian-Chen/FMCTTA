@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/HUST_Gearbox/tf_profm/gold_tca.yaml
+base:
+  - base.yaml
+  - ../../methods/gold_tca.yaml
+
+runtime:
+  run_name: hust-gearbox-tf-profm-gold_tca

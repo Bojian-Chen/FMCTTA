@@ -359,16 +359,18 @@ GOLD 会从 source train 提取类别原型，目标流不读取标签；参数�
 
 ## Source 各域表现与 TTA 相对提升
 
-Source 训练结束、选定最佳 checkpoint 后，默认额外评估所有域。该诊断独立于
-`domains` 指定的在线流，不会把测试域加入训练，也不会根据测试域指标选择 checkpoint。
-源域本身只评估 source validation，避免把训练集准确率当作泛化表现；其余域使用
-完整样本，不受 `target_samples_per_class` 或 `max_target_per_domain` 限制。
+Source 训练结束、选定最佳 checkpoint 后，默认只额外评估源域验证集；目标域由随后
+的正式 online stream 评估一次，避免重复前向计算。该诊断不会把测试域加入训练，也
+不会根据测试域指标选择 checkpoint。需要独立的完整目标域诊断时，仍可显式选择
+`all` 或 `targets`；这些诊断不受 `target_samples_per_class` 或
+`max_target_per_domain` 限制。
 
 ```yaml
 protocol:
-  source_eval_domains: all  # 默认；也可写 targets 或 [4, 8, 12]
+  source_eval_domains: sources  # 默认；也可写 all、targets 或 [4, 8, 12]
 ```
 
+- `sources`：仅评估各源域的 held-out validation 样本。
 - `all`：所有域，包括源域验证集。
 - `targets`：当前 `domains` 中的目标域，去重后评估完整域。
 - 域 ID 列表：只做指定域的 source 诊断；不改变在线目标序列。
@@ -376,10 +378,10 @@ protocol:
 Source 实验目录生成 `source_evaluation.csv` 和 `source_evaluation.json`，包含
 `domain`、`domain_name`、`evaluation_split`、样本数、Accuracy、Balanced Accuracy、
 Macro-F1 等。JSON 按域 ID 建索引，新训练的 checkpoint 目录也保存一份该 JSON。
-只有 source 模式或本次确实训练了源模型才执行此全域诊断；加载 checkpoint 的 TTA
+只有 source 模式或本次确实训练了源模型才执行此诊断；加载 checkpoint 的 TTA
 实验只额外计算本次实际目标样本的 source 基线。
 
-例如先训练 source 并评估所有域，再按选择的域顺序执行 GOLD：
+例如需要完整域报告时显式评估所有域，再按选择的域顺序执行 GOLD：
 
 ```bash
 python main.py --config configs/SDUST_Bearing/unifault/source.yaml --source_eval_domains all

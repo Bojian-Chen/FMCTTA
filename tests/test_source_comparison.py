@@ -137,7 +137,7 @@ def test_source_domain_diagnostics_do_not_include_training_samples(toy_setup):
         data.source_evaluation_dataset(4)
 
 
-def test_source_all_domains_then_tta_subset_reorder_repetition(toy_setup):
+def test_source_domains_then_tta_subset_reorder_repetition(toy_setup):
     spec, common, root = toy_setup
     source = runner.run_experiment(
         parse_args(
@@ -154,9 +154,9 @@ def test_source_all_domains_then_tta_subset_reorder_repetition(toy_setup):
     )
     source_dir = Path(source["run_dir"])
     report = json.loads((source_dir / "source_evaluation.json").read_text())
-    assert set(report["domains"]) == {"0", "1", "2", "3"}
+    # Target domains are evaluated once by the formal online stream.
+    assert set(report["domains"]) == {"0"}
     assert report["domains"]["0"]["evaluation_split"] == "source_validation"
-    assert report["domains"]["2"]["samples"] == 12
     assert (source_dir / "source_checkpoint" / "source_evaluation.json").is_file()
     assert source["online"]["accuracy_gain_pp"] == 0
     assert source["online"]["macro_f1_gain_pp"] == 0
@@ -234,11 +234,21 @@ def test_source_eval_selection_and_rng_isolation(toy_setup):
     result = runner.evaluate_source_domains(model, data, [3], args, torch.device("cpu"))
     assert torch.equal(before, torch.get_rng_state())
     assert result[0]["domain"] == 3
-    assert runner.resolve_source_eval_domains("targets", spec, (3, 1, 3)) == (3, 1)
-    assert runner.resolve_source_eval_domains("3,1", spec, (2,)) == (3, 1)
+    assert runner.resolve_source_eval_domains(
+        "sources", spec, (0, 2), (3, 1)
+    ) == (0, 2)
+    assert runner.resolve_source_eval_domains(
+        "all", spec, (0,), (3, 1)
+    ) == (0, 1, 2, 3)
+    assert runner.resolve_source_eval_domains(
+        "targets", spec, (0,), (3, 1, 3)
+    ) == (3, 1)
+    assert runner.resolve_source_eval_domains(
+        "3,1", spec, (0,), (2,)
+    ) == (3, 1)
     for invalid in ("4", "1,1", "bad"):
         with pytest.raises(ValueError):
-            runner.resolve_source_eval_domains(invalid, spec, (1,))
+            runner.resolve_source_eval_domains(invalid, spec, (0,), (1,))
 
 
 def test_source_eval_yaml_list(tmp_path):

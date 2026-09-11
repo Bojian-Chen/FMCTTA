@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/MCC5_motor/unifreq/gold_tca.yaml
+base:
+  - base.yaml
+  - ../../methods/gold_tca.yaml
+
+runtime:
+  run_name: mcc5-motor-gold_tca

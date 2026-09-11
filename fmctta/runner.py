@@ -147,7 +147,9 @@ def evaluate_adapter(
     return meter.compute()
 
 
-def resolve_source_eval_domains(value: str, spec, target_domains):
+def resolve_source_eval_domains(value: str, spec, source_domains, target_domains):
+    if value == "sources":
+        return tuple(dict.fromkeys(source_domains))
     if value == "all":
         return tuple(range(spec.num_domains))
     if value == "targets":
@@ -215,7 +217,7 @@ def run_experiment(args) -> Dict[str, Any]:
         source_domains, target_domains = (sequence[0],), sequence[1:]
     source_domain = source_domains[0]
     source_eval_domains = resolve_source_eval_domains(
-        args.source_eval_domains, spec, target_domains
+        args.source_eval_domains, spec, source_domains, target_domains
     )
     source_samples_per_class = parse_source_samples_per_class(
         args.source_samples_per_class, spec.num_classes
@@ -442,7 +444,7 @@ def run_experiment(args) -> Dict[str, Any]:
         )
 
     gold_source_prototypes = None
-    if args.method.lower() == "gold":
+    if args.method.lower() in {"gold", "gold_tca"}:
         from .gold import build_source_prototypes
 
         gold_source_prototypes = build_source_prototypes(
@@ -496,6 +498,9 @@ def run_experiment(args) -> Dict[str, Any]:
         gold_augmentation_scale_std=args.gold_augmentation_scale_std,
         gold_augmentation_mask_probability=args.gold_augmentation_mask_probability,
         gold_augmentation_shift_ratio=args.gold_augmentation_shift_ratio,
+        gold_tca_lambda_topology=args.gold_tca_lambda_topology,
+        gold_tca_centroid_momentum=args.gold_tca_centroid_momentum,
+        gold_tca_uniformity_temperature=args.gold_tca_uniformity_temperature,
         tca_teacher_momentum=args.tca_teacher_momentum,
         tca_centroid_momentum=args.tca_centroid_momentum,
         tca_topology_weight_momentum=args.tca_topology_weight_momentum,
@@ -558,18 +563,21 @@ def run_experiment(args) -> Dict[str, Any]:
         knn_reference_features=knn_reference_features,
         knn_reference_labels=knn_reference_labels,
     )
-    if args.method.lower() == "gold" and args.gold_warmup_steps > 0:
+    if args.method.lower() in {"gold", "gold_tca"} and args.gold_warmup_steps > 0:
         adapter.warmup(source_train_loader, args.gold_warmup_steps)
 
-    # Every adapter owns a copy. Keep the original checkpoint model as the
-    # frozen baseline, including for methods that warm up their own copy.
+    # Adaptive adapters own a copy. Keep the original checkpoint model as the
+    # frozen baseline; SourceAdapter safely shares it because it never updates.
     model.eval()
     model.requires_grad_(False)
 
     source_before = (
         evaluate_adapter(adapter, source_validation_loader, device, spec.num_classes)
         if args.method.lower() == "knn"
-        or (args.method.lower() == "gold" and args.gold_warmup_steps > 0)
+        or (
+            args.method.lower() in {"gold", "gold_tca"}
+            and args.gold_warmup_steps > 0
+        )
         else source_model_validation
     )
     if args.method.lower() == "knn":
@@ -601,7 +609,11 @@ def run_experiment(args) -> Dict[str, Any]:
             # Protocol boundary: target labels are used by meters only.
             device_inputs = inputs.to(device)
             outputs = adapter(device_inputs)
-            post_outputs = adapter.predict(device_inputs)
+            post_outputs = (
+                outputs
+                if args.method.lower() == "source"
+                else adapter.predict(device_inputs)
+            )
             with torch.no_grad():
                 source_outputs = (
                     outputs if args.method.lower() == "source" else model(device_inputs)
@@ -636,8 +648,12 @@ def run_experiment(args) -> Dict[str, Any]:
             "sample_ids_sha256": _sample_digest(target_dataset.sample_ids),
             **source_metrics,
         })
-        retention = evaluate_adapter(
-            adapter, source_validation_loader, device, spec.num_classes
+        retention = (
+            source_before
+            if args.method.lower() == "source"
+            else evaluate_adapter(
+                adapter, source_validation_loader, device, spec.num_classes
+            )
         )
         row: Dict[str, Any] = {
             "position": position,

@@ -1,10 +1,9 @@
 # Shared source-only protocol. Compose after a dataset/model base.
 protocol:
   method: source
-  # Diagnostics after selecting the best source checkpoint, independent of domains.
-  source_eval_domains: all
+  # Diagnose held-out source domains only; targets are evaluated by the stream.
+  source_eval_domains: sources
 
 model:
   # A source run trains a fresh downstream model instead of loading one.
   source_checkpoint: ""
-

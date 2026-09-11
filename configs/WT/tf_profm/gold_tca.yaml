@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/WT/tf_profm/gold_tca.yaml
+base:
+  - base.yaml
+  - ../../methods/gold_tca.yaml
+
+runtime:
+  run_name: wt-tf-profm-gold_tca

@@ -269,7 +269,8 @@ python main.py \
 
 1. Split the first domain class-stratifiably into source-train and
    source-validation subsets.
-2. Fit optional normalization statistics on source-train only.
+2. Apply either normalization fitted on source-train or independent per-sample
+   normalization, according to `--normalization`.
 3. Train or load the source classifier.
 4. Process every target sample exactly once in the specified order.
 5. Produce the online prediction, perform a label-free update, and optionally

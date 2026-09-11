@@ -18,7 +18,7 @@ data:
   dataset_manifest: data/ctta_custom/HUST_Gearbox_0p1s_custom.json
   # dataset/data_root are omitted because the manifest supplies both.
   # Dataset-level normalization fitted on source-train only.
-  normalization: none # ["zscore", "minmax", "none"]
+  normalization: none # ["zscore", "minmax", "sample_zscore", "sample_minmax", "none"]
   # Per-class fraction held out for source validation and best-epoch selection.
   source_validation_ratio: 0.2
   # true disables known label-layout repairs and fails on malformed data.

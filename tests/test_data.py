@@ -46,6 +46,54 @@ def test_source_only_normalization_and_single_pass_order(tmp_path: Path) -> None
     assert len(torch.unique(first.sample_ids)) == len(first)
 
 
+@pytest.mark.parametrize("normalization", ["sample_zscore", "sample_minmax"])
+def test_per_sample_channel_normalization(
+    tmp_path: Path, normalization: str
+) -> None:
+    spec = DatasetSpec(
+        "toy_multichannel",
+        "toy_multichannel.mat",
+        num_classes=2,
+        num_domains=3,
+        samples_per_class=5,
+        default_sequence=(0, 1, 2),
+        description="test",
+        num_channels=2,
+    )
+    rng = np.random.RandomState(9)
+    signals = rng.randn(spec.expected_samples, 2, 32).astype(np.float32)
+    signals[:, 1] = 5.0 * signals[:, 1] + 20.0
+    labels = np.tile(np.repeat(np.arange(2), 5), 3)
+    sio.savemat(tmp_path / spec.filename, {"data": signals, "label": labels})
+    data = FaultDataModule(
+        spec,
+        tmp_path,
+        source_domain=0,
+        target_domains=(1, 2),
+        normalization=normalization,
+        source_validation_ratio=0.2,
+        seed=7,
+    )
+
+    signals = data.signals
+    if normalization == "sample_zscore":
+        assert torch.allclose(
+            signals.mean(dim=-1), torch.zeros_like(signals[..., 0]), atol=1e-6
+        )
+        assert torch.allclose(
+            signals.std(dim=-1, unbiased=False),
+            torch.ones_like(signals[..., 0]),
+            atol=1e-5,
+        )
+    else:
+        assert torch.allclose(
+            signals.amin(dim=-1), torch.zeros_like(signals[..., 0]), atol=1e-6
+        )
+        assert torch.allclose(
+            signals.amax(dim=-1), torch.ones_like(signals[..., 0]), atol=1e-6
+        )
+
+
 def test_target_cap_does_not_change_source_split(tmp_path: Path) -> None:
     spec = _make_dataset(tmp_path)
     data = FaultDataModule(

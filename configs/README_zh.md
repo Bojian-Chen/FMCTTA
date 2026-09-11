@@ -158,7 +158,7 @@ shuffled:    六个样本的确定性随机混排
 | --- | --- | --- |
 | `data_root` | 项目内 `data/ctta_custom` | 内置 PU/WT MAT 文件所在目录。HUST/MCC5 的静态 MAT 文件需在此处或以本项显式指定的目录中提供；设置 `dataset_manifest` 后，程序改用该清单所在目录，不再采用此项。 |
 | `dataset_manifest` | 空字符串 | `ctta_data_builder` 生成的 JSON 清单路径。加载后，其中的动态数据集规格、MAT 文件位置和默认域序列生效，并覆盖 `dataset`、`data_root`。若 `stream_order` 未显式设置，清单中的默认流顺序会生效。 |
-| `normalization` | `none`；`none`、`zscore`、`minmax` | 输入归一化方式。`zscore` 使用源域训练集均值/标准差；`minmax` 使用源域训练集最小/最大值；`none` 不变换。统计量绝不会从验证或目标域估计。 |
+| `normalization` | `none`；`none`、`zscore`、`minmax`、`sample_zscore`、`sample_minmax` | 输入归一化方式。`zscore`/`minmax` 使用 source-train 的逐位置统计量；`sample_zscore`/`sample_minmax` 对每个样本、每个通道沿时间轴独立归一化，不拟合跨样本统计量；`none` 不变换。 |
 | `source_validation_ratio` | `0.2`，开区间 `(0, 1)` | 源域中每个类别划作验证集的比例，源域分类器按验证集 macro-F1 选取最佳 epoch。每类至少保留一个训练样本和一个验证样本。 |
 | `strict_data` | `false` | 是否禁止已知数据集的标签长度修复。通常数据的 `data` 和 `label` 长度不一致会报错；仅对声明可修复标签布局的数据集，默认可按元数据重建标签并记录警告。设为 `true` 时也一律报错。 |
 | `max_source_per_class` | `null` | 快速调试用：每个源域类别最多使用的样本数，正整数。与 `source_samples_per_class` 互斥。源域仍会在该数目内按 `source_validation_ratio` 分层划分。 |
@@ -206,7 +206,7 @@ allow_repeated_target_samples: true
 | `pretrained_checkpoint` | 空字符串 | UniFault/TF-ProFM 的 PHMFD `.pt` 文件或运行目录；`auto` 读取 `/data1/PHM-Vibench/PHMFD/log` 中 seed 42 权重。UniFreq 不使用此项。 |
 | `foundation_model_size` | `auto`；`auto`、`tiny`、`small`、`base` | 无 checkpoint 时的 UniFault结构；配合 `pretrained_checkpoint: auto` 时选择 tiny/small 日志。TF-ProFM checkpoint 自带结构参数。 |
 | `model_input_length` | `0` | `0` 从 checkpoint 推断；迁移日志中 UniFault 为 1024、TF-ProFM 为 2048。显式值必须与 checkpoint 结构一致。 |
-| `model_input_normalization` | `auto`；`none`、`sample_zscore`、`sample_minmax` | `auto` 复现 PHMFD：UniFault 使用逐样本 min-max，TF-ProFM 使用逐样本 z-score。此项独立于数据模块的源域统计量 `normalization`。 |
+| `model_input_normalization` | `auto`；`none`、`sample_zscore`、`sample_minmax` | `auto` 复现 PHMFD：UniFault 使用逐样本 min-max，TF-ProFM 使用逐样本 z-score。此项独立于数据模块的 `normalization`；若两层都选择逐样本归一化，信号会被处理两次。 |
 | `model_id` | `bojian1/UniFreq-tiny` | Hugging Face 上的 UniFreq 模型 ID，或本地模型目录。目录/仓库需要包含 UniFreq 的 `config.json` 和 `model.safetensors`。 |
 | `model_revision` | 空字符串 | Hugging Face 模型的 revision、分支、tag 或 commit。留空时由 Hugging Face 使用默认 revision。使用 checkpoint 时应与训练该 checkpoint 的 revision 相同。 |
 | `hf_token` | 空字符串 | 访问私有或受限 Hugging Face 模型的 token；公开模型不需要。不要把真实 token 提交到 YAML；运行输出的 `config.json` 会脱敏，但 YAML 文件本身不会。 |
@@ -392,9 +392,10 @@ GOLD 使用 Adam，默认更新全部基础模型参数、低秩缩放向量和�
 
 ### Source 全域诊断与 TTA 对比
 
-`protocol.source_eval_domains` 默认 `all`，也支持 `targets` 或域 ID 列表。source
-训练结束后输出独立的 `source_evaluation.csv/json`；训练域使用验证集，其余域使用
-全域样本。该选项与 TTA 的 `domains` 独立，完整域诊断不应用目标采样上限。
+`protocol.source_eval_domains` 默认 `sources`，也支持 `all`、`targets` 或域 ID 列表。
+source 训练结束后输出独立的 `source_evaluation.csv/json`；源域使用验证集。默认不在
+正式 target stream 前重复评估目标域；显式选择 `all` 或 `targets` 时，非源域使用
+全域样本且不应用目标采样上限。
 
 TTA 自动对本次实际目标样本运行冻结 source classifier，生成 `source_baseline.csv/json`，
 并在 `domains.csv` / `summary.json` 中增加百分点提升和相对提升。支持域子集、重排、

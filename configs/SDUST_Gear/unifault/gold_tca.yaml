@@ -1,0 +1,7 @@
+# Run: python main.py --config configs/SDUST_Gear/unifault/gold_tca.yaml
+base:
+  - base.yaml
+  - ../../methods/gold_tca.yaml
+
+runtime:
+  run_name: sdust-gear-unifault-small-gold_tca

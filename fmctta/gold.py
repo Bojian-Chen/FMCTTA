@@ -179,6 +179,15 @@ class GOLDAdapter(OnlineAdapter):
     def apply_adapter(self, features: torch.Tensor) -> torch.Tensor:
         return features + ((features @ self.basis) * self.adapter_scale) @ self.basis.T
 
+    def additional_regularization(
+        self,
+        adapted_features: torch.Tensor,
+        student_logits: torch.Tensor,
+    ) -> torch.Tensor:
+        """Hook for GOLD variants that constrain the adapted feature geometry."""
+
+        return adapted_features.sum() * 0.0
+
     @torch.enable_grad()
     def batch_agop(
         self, features: torch.Tensor, logits: torch.Tensor
@@ -261,6 +270,7 @@ class GOLDAdapter(OnlineAdapter):
                     self.projector(views),
                     self.temperature,
                 )
+            loss = loss + self.additional_regularization(adapted, outputs)
             batch_matrix = self.batch_agop(features, outputs)
             self.adaptation_iterations += 1
             if torch.isfinite(loss):

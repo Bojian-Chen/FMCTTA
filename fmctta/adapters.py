@@ -29,6 +29,7 @@ GRADIENT_ADAPTATION_METHODS = {
     "rotta",
     "tca",
     "gold",
+    "gold_tca",
     "ttt",
 }
 
@@ -62,7 +63,14 @@ def resolve_adaptation_parameter_scope(method: str, scope: str) -> str:
     if scope == "default":
         return (
             "all"
-            if method in {"cotta", "vida", "continual_mae", "tca", "gold"}
+            if method in {
+                "cotta",
+                "vida",
+                "continual_mae",
+                "tca",
+                "gold",
+                "gold_tca",
+            }
             else "backbone"
             if method == "ttt"
             else "layernorm"
@@ -167,7 +175,9 @@ class OnlineAdapter(nn.Module):
 
 class SourceAdapter(OnlineAdapter):
     def __init__(self, model: nn.Module, device: torch.device) -> None:
-        super().__init__(copy.deepcopy(model), device)
+        # Source-only inference never mutates the model, so sharing avoids a
+        # large and unnecessary copy of the foundation backbone.
+        super().__init__(model, device)
         self.model.eval()
         self.model.requires_grad_(False)
 
@@ -853,6 +863,9 @@ def build_adapter(
     gold_augmentation_scale_std: float = 0.05,
     gold_augmentation_mask_probability: float = 0.0,
     gold_augmentation_shift_ratio: float = 0.0,
+    gold_tca_lambda_topology: float = 0.15,
+    gold_tca_centroid_momentum: float = 0.9,
+    gold_tca_uniformity_temperature: float = 2.0,
     ttt_auxiliary_head: Optional[nn.Module] = None,
     sar_rho: float = 0.05,
     sar_entropy_margin: Optional[float] = None,
@@ -995,6 +1008,40 @@ def build_adapter(
             augmentation_scale_std=gold_augmentation_scale_std,
             augmentation_mask_probability=gold_augmentation_mask_probability,
             augmentation_shift_ratio=gold_augmentation_shift_ratio,
+        )
+    if method == "gold_tca":
+        from .gold_tca import GOLDTCAAdapter
+
+        if gold_source_prototypes is None:
+            raise ValueError(
+                "gold_tca requires class prototypes from source training data"
+            )
+        return GOLDTCAAdapter(
+            model,
+            device,
+            learning_rate,
+            num_classes,
+            gold_source_prototypes,
+            steps=steps,
+            weight_decay=weight_decay,
+            parameter_scope=scope,
+            top_r=gold_top_r,
+            alpha=gold_alpha,
+            conf_thresh=gold_conf_thresh,
+            update_every=gold_update_every,
+            adapter_lr_scale=gold_adapter_lr_scale,
+            lambda_ce_trg=gold_lambda_ce_trg,
+            lambda_cont=gold_lambda_cont,
+            temperature=gold_temperature,
+            projection_dim=gold_projection_dim,
+            teacher_momentum=gold_teacher_momentum,
+            augmentation_noise_std=gold_augmentation_noise_std,
+            augmentation_scale_std=gold_augmentation_scale_std,
+            augmentation_mask_probability=gold_augmentation_mask_probability,
+            augmentation_shift_ratio=gold_augmentation_shift_ratio,
+            lambda_topology=gold_tca_lambda_topology,
+            centroid_momentum=gold_tca_centroid_momentum,
+            uniformity_temperature=gold_tca_uniformity_temperature,
         )
     if method == "tca":
         from .tca import TCAAdapter

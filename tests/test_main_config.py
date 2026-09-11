@@ -36,6 +36,12 @@ def test_cli_uses_underscore_options_and_accepts_legacy_dash_aliases() -> None:
     assert "--source-epochs" not in build_parser().format_help()
 
 
+@pytest.mark.parametrize("normalization", ["sample_zscore", "sample_minmax"])
+def test_sample_normalization_options_are_accepted(normalization: str) -> None:
+    args = parse_args(["--normalization", normalization])
+    assert args.normalization == normalization
+
+
 def test_cli_supports_phmfd_foundation_models() -> None:
     args = parse_args(
         [
@@ -228,6 +234,7 @@ def test_dataset_yaml_directories_are_grouped_by_foundation_model() -> None:
         "rotta",
         "tca",
         "gold",
+        "gold_tca",
         "ttt",
     }
 
@@ -278,6 +285,7 @@ def test_phmfd_yaml_matrix_is_complete_and_valid(
         "rotta",
         "tca",
         "gold",
+        "gold_tca",
         "ttt",
     }
 
@@ -304,7 +312,7 @@ def test_phmfd_yaml_matrix_is_complete_and_valid(
             assert args.feature_branch == "fused"
             assert args.method == method
             assert args.run_name == f"{dataset_tag}-{run_tag}-{method}"
-            if method in {"source", "ttt"}:
+            if method in {"source", "ttt", "gold_tca"}:
                 assert args.source_checkpoint == ""
             else:
                 assert f"{dataset_tag}-{run_tag}-source-seed2025" in Path(
