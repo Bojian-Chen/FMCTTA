@@ -22,7 +22,7 @@ dependencies = [
 include = ["fmctta*", "ctta_data_builder*"]
 
 [tool.setuptools.package-data]
-ctta_data_builder = ["README_zh.md", "configs/*.json"]
+ctta_data_builder = ["README_zh.md", "configs/*.json", "configs/octta/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

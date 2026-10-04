@@ -1,0 +1,36 @@
+{
+  "dataset": "PU",
+  "name": "PU_1024point_custom",
+  "raw_root": "/home/xyc3090/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "output": "../../../data/ctta_custom/PU_1024point_custom.mat",
+  "classes": [
+    "K001",
+    "KA04",
+    "KA15",
+    "KA16",
+    "KA22",
+    "KA30",
+    "KB23",
+    "KB24",
+    "KB27",
+    "KI14",
+    "KI16",
+    "KI17",
+    "KI18",
+    "KI21"
+  ],
+  "channels": [
+    "vibration"
+  ],
+  "domains": {
+    "0": "N15_M07_F10",
+    "1": "N09_M07_F10",
+    "2": "N15_M01_F10",
+    "3": "N15_M07_F04"
+  },
+  "samples_per_class": 4860,
+  "window_size_points": 1024,
+  "stride_points": 1024,
+  "selection": "uniform",
+  "target_stream_order": "interleaved"
+}

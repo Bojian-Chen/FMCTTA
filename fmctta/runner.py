@@ -27,6 +27,8 @@ from .config import (
     resolve_target_domains,
 )
 from .data import FaultDataModule
+from .continual import build_continual_stream, load_operating_condition, save_continual_report
+from .source_reference import SourceReference, file_sha256
 from .metrics import ClassificationMeter, relative_improvement
 from .model import build_model
 from .knn import build_reference_bank
@@ -80,13 +82,59 @@ def _write_json(path: Path, content: Mapping[str, Any]) -> None:
     )
 
 
-def _write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
+def _write_csv(
+    path: Path, rows: List[Dict[str, Any]], columns: Optional[List[str]] = None
+) -> None:
     if not rows:
         return
+    columns = columns or list(rows[0])
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(
+            handle, fieldnames=columns, restval="", extrasaction="ignore"
+        )
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _write_target_forgetting_csvs(
+    run_dir: Path,
+    rows: List[Dict[str, Any]],
+    occurrence_means: List[Dict[str, Any]],
+) -> None:
+    """Export the existing console values without recomputing diagnostics."""
+
+    csv_rows = [
+        {
+            "domain": row["domain"],
+            "occurrence": row["occurrence"],
+            "pre_visit_acc": row["pre_visit_accuracy"],
+            "drop_from_previous_pp": row["accuracy_drop_from_previous_pp"],
+            "from_best_pp": row["accuracy_forgetting_from_best_pp"],
+            "change_from_first_pp": row["accuracy_change_from_first_occurrence_pp"],
+        }
+        for row in rows
+        if row["is_repeat"]
+    ]
+    occurrence_csv_rows = [
+        {
+            "occurrence": row["occurrence"],
+            "domains": row["domain_count"],
+            "pre_visit_acc": row["mean_pre_visit_accuracy"],
+            "post_visit_acc": row["mean_post_visit_accuracy"],
+            "change_from_first_pp": row[
+                "mean_accuracy_change_from_first_occurrence_pp"
+            ],
+        }
+        for row in occurrence_means
+    ]
+    for row in csv_rows + occurrence_csv_rows:
+        for field, value in row.items():
+            if isinstance(value, (float, np.floating)) and np.isnan(value):
+                row[field] = None
+    _write_csv(run_dir / "target_forgetting.csv", csv_rows)
+    _write_csv(
+        run_dir / "target_forgetting_occurrences.csv", occurrence_csv_rows
+    )
 
 
 def _prediction_rows(
@@ -297,7 +345,7 @@ def _target_forgetting_summary(
     }
 
 
-def evaluate_source_domains(model, data, domains, args, device):
+def evaluate_source_domains(model, data, domains, args, device, source_reference=None):
     """Run diagnostics without advancing the adaptation RNG or target stream."""
     rows = []
     cuda_devices = (
@@ -311,7 +359,16 @@ def evaluate_source_domains(model, data, domains, args, device):
                 dataset, args.eval_batch_size, shuffle=False,
                 workers=args.workers, device=device,
             )
-            metrics = evaluate_supervised(model, loader, device, data.spec.num_classes)
+            if source_reference is None:
+                metrics = evaluate_supervised(model, loader, device, data.spec.num_classes)
+            else:
+                meter = ClassificationMeter(data.spec.num_classes)
+                for inputs, labels, sample_ids in loader:
+                    outputs = source_reference.outputs(
+                        model, domain, inputs, labels, sample_ids, device
+                    )
+                    meter.update(outputs, labels)
+                metrics = meter.compute()
             row = {
                 "domain": domain,
                 "domain_name": data.spec.domain_name(domain),
@@ -330,7 +387,7 @@ def evaluate_source_domains(model, data, domains, args, device):
 
 
 def run_experiment(args) -> Dict[str, Any]:
-    set_seed(args.seed)
+    set_seed(args.source_seed)
     device = resolve_device(args.device)
     spec = DATASETS[args.dataset]
     if args.source_domains:
@@ -346,7 +403,15 @@ def run_experiment(args) -> Dict[str, Any]:
         source_domains, target_domains = (sequence[0],), sequence[1:]
     source_domain = source_domains[0]
     target_forgetting_enabled = args.protocol_mode == "target_forgetting"
-    source_evaluation_only = args.method.lower() == "source"
+    continual_enabled = args.protocol_mode == "continual"
+    source_evaluation_only = args.method.lower() == "source" and not continual_enabled
+    if continual_enabled:
+        if len(target_domains) != 1 or target_domains[0] in source_domains:
+            raise ValueError("continual requires exactly one non-source target domain")
+        if args.max_target_per_domain is not None or args.target_samples_per_class:
+            raise ValueError("continual uses the full timestamped domain; clear target sample caps/counts")
+        if args.continual_window_size < 1:
+            raise ValueError("continual_window_size must be positive")
     configured_target_domains = target_domains
     if (
         not source_evaluation_only
@@ -384,7 +449,7 @@ def run_experiment(args) -> Dict[str, Any]:
             len(target_domains),
         )
     )
-    stream_order = args.stream_order or spec.default_stream_order
+    stream_order = "interleaved" if continual_enabled else (args.stream_order or spec.default_stream_order)
     resolved_scope = resolve_adaptation_parameter_scope(
         args.method, args.adaptation_parameter_scope
     )
@@ -413,7 +478,11 @@ def run_experiment(args) -> Dict[str, Any]:
         normalization=args.normalization,
         source_validation_ratio=args.source_validation_ratio,
         stream_order=stream_order,
+        dirichlet_beta=args.dirichlet_beta,
+        dirichlet_num_chunks=args.dirichlet_num_chunks,
         seed=args.seed,
+        source_seed=args.source_seed,
+        allow_source_target_recording_overlap=args.allow_source_target_recording_overlap,
         strict_data=args.strict_data,
         allow_repeated_target_samples=allow_repeated_target_samples,
         max_source_per_class=args.max_source_per_class,
@@ -426,12 +495,26 @@ def run_experiment(args) -> Dict[str, Any]:
             and args.allow_target_sample_reuse
         ),
     )
+    continual_metadata = None
+    if continual_enabled:
+        continual_dataset, continual_elapsed, continual_metadata = build_continual_stream(
+            data.target_dataset(target_domains[0], stream_position=0),
+            data.window_start_sec, spec.num_classes, args.continual_class_onsets,
+        )
+        continual_metadata["operating_condition"] = load_operating_condition(
+            args.dataset_manifest, target_domains[0], spec.domain_name(target_domains[0]),
+        )
+        continual_metadata["rolling_window_samples"] = args.continual_window_size
+        continual_metadata["batch_size"] = args.stream_batch_size
+        continual_metadata["evaluation"] = "predict before each batch update; labels used only for scheduling and scoring"
+        _write_json(run_dir / "continual_stream.json", continual_metadata)
     source_train_loader = data.loader(
         data.source.train,
         args.source_batch_size,
         shuffle=True,
         workers=args.workers,
         device=device,
+        generator=torch.Generator().manual_seed(args.source_seed),
     )
     source_validation_loader = data.loader(
         data.source.validation,
@@ -493,11 +576,17 @@ def run_experiment(args) -> Dict[str, Any]:
         "normalization": args.normalization,
         "source_validation_ratio": args.source_validation_ratio,
         "input_channels": spec.num_channels,
-        "seed": args.seed,
+        "source_seed": args.source_seed,
+        "num_classes": spec.num_classes,
+        "max_source_per_class": args.max_source_per_class,
+        "dataset_sha256": file_sha256(spec.path(Path(args.data_root))),
     }
     source_history: List[Dict[str, float]] = []
     checkpoint_metadata: Dict[str, object]
+    checkpoint_dir = Path(args.source_checkpoint) if args.source_checkpoint else run_dir / "source_checkpoint"
     if args.source_checkpoint:
+        if not (checkpoint_dir / "source_model.safetensors").is_file():
+            checkpoint_dir = checkpoint_dir / "source_checkpoint"
         checkpoint_metadata = load_checkpoint(
             Path(args.source_checkpoint),
             model,
@@ -521,6 +610,8 @@ def run_experiment(args) -> Dict[str, Any]:
             spec.num_classes,
             epochs=args.source_epochs,
             learning_rate=args.source_learning_rate,
+            optimizer=args.source_optimizer,
+            momentum=args.source_momentum,
             backbone_lr_scale=args.source_backbone_lr_scale,
             weight_decay=args.source_weight_decay,
             gradient_clip=args.source_gradient_clip,
@@ -531,6 +622,7 @@ def run_experiment(args) -> Dict[str, Any]:
         checkpoint_metadata = {
             **checkpoint_expected,
             "foundation_config": foundation_config.to_dict(),
+            "best_validation_accuracy": source_result.best_accuracy,
             "best_validation_macro_f1": source_result.best_macro_f1,
             "best_epoch": source_result.best_epoch,
         }
@@ -550,8 +642,18 @@ def run_experiment(args) -> Dict[str, Any]:
         )
         print(f"Saved source checkpoint: {checkpoint_dir}")
 
-    source_model_validation = evaluate_supervised(
-        model, source_validation_loader, device, spec.num_classes
+    reference_metadata = {
+        **checkpoint_expected,
+        "checkpoint_sha256": file_sha256(checkpoint_dir / "source_model.safetensors"),
+        "source_train_ids_sha256": _sample_digest(data.source.train.sample_ids),
+        "source_validation_ids_sha256": _sample_digest(data.source.validation.sample_ids),
+    }
+    source_reference = SourceReference(
+        checkpoint_dir / "source_outputs.pt", reference_metadata,
+        rebuild_on_checkpoint_change=True,
+    )
+    source_model_validation = source_reference.validation_metrics(
+        model, data, source_validation_loader, device
     )
     print(
         f"Source domains {list(source_domains)} validation accuracy: "
@@ -564,7 +666,7 @@ def run_experiment(args) -> Dict[str, Any]:
             model.eval()
             model.requires_grad_(False)
         source_evaluation_rows = evaluate_source_domains(
-            model, data, source_eval_domains, args, device
+            model, data, source_eval_domains, args, device, source_reference=source_reference
         )
         source_evaluation = {
             "dataset": spec.name,
@@ -580,6 +682,16 @@ def run_experiment(args) -> Dict[str, Any]:
         _write_csv(run_dir / "source_evaluation.csv", source_evaluation_rows)
         if not args.source_checkpoint:
             _write_json(run_dir / "source_checkpoint" / "source_evaluation.json", source_evaluation)
+
+    if args.method.lower() == "source":
+        for domain in source_eval_domains:
+            loader = data.loader(
+                data.source_output_dataset(domain), args.eval_batch_size,
+                shuffle=False, workers=args.workers, device=device,
+            )
+            for inputs, labels, sample_ids in loader:
+                source_reference.outputs(model, domain, inputs, labels, sample_ids, device)
+    source_reference.persist()
 
     if source_evaluation_only:
         summary: Dict[str, Any] = {
@@ -623,6 +735,7 @@ def run_experiment(args) -> Dict[str, Any]:
                 "checkpoint_metadata": checkpoint_metadata,
                 "evaluation": source_evaluation,
             },
+            "source_reference": source_reference.statistics(),
             "source_baseline": None,
             "online": None,
             "post_adapt": None,
@@ -642,6 +755,9 @@ def run_experiment(args) -> Dict[str, Any]:
         _write_json(run_dir / "summary.json", summary)
         print(f"Source evaluation only; results={run_dir}")
         return summary
+
+    source_reference.reset_statistics()
+    set_seed(args.seed)
 
     source_reference_loader = data.loader(
         data.source.train,
@@ -832,12 +948,19 @@ def run_experiment(args) -> Dict[str, Any]:
     source_overall = ClassificationMeter(spec.num_classes)
     source_baseline_rows: List[Dict[str, Any]] = []
     domain_rows: List[Dict[str, Any]] = []
+    domain_csv_rows: List[Dict[str, Any]] = []
+    console_csv_rows: List[Dict[str, Any]] = []
     prediction_rows: List[Dict[str, Any]] = []
     target_forgetting_rows: List[Dict[str, Any]] = []
     target_forgetting_history: Dict[int, List[Dict[str, Any]]] = {}
     for position, domain in enumerate(target_domains, start=1):
         domain_name = spec.domain_name(domain)
-        target_dataset = data.target_dataset(domain, stream_position=position - 1)
+        target_dataset = data.target_dataset(
+            domain,
+            stream_position=position - 1,
+        )
+        if continual_enabled:
+            target_dataset = continual_dataset
         target_loader = data.loader(
             target_dataset,
             args.stream_batch_size,
@@ -901,30 +1024,36 @@ def run_experiment(args) -> Dict[str, Any]:
                     forgetting_row[f"{metric}_drop_from_first_pp"] = None
                     forgetting_row[f"{metric}_forgetting_from_best_pp"] = None
         domain_meter = ClassificationMeter(spec.num_classes)
-        post_adapt_meter = ClassificationMeter(spec.num_classes)
-        source_meter = ClassificationMeter(spec.num_classes)
+        post_adapt_domain_meter = ClassificationMeter(spec.num_classes)
+        source_domain_meter = ClassificationMeter(spec.num_classes)
+        reused_before = source_reference.samples_reused
+        forwarded_before = source_reference.samples_forwarded
         for batch, (inputs, labels, sample_ids) in enumerate(target_loader):
-            # Protocol boundary: target labels are used by meters only.
-            device_inputs = inputs.to(device)
-            outputs = adapter(device_inputs)
-            post_outputs = (
-                outputs
-                if args.method.lower() == "source"
-                else adapter.predict(device_inputs)
+            source_outputs = source_reference.outputs(
+                model, domain, inputs, labels, sample_ids, device
             )
-            with torch.no_grad():
-                source_outputs = (
-                    outputs if args.method.lower() == "source" else model(device_inputs)
-                )
-            source_meter.update(source_outputs, labels)
+            # Critical protocol boundary: labels never enter the adapter.
+            if args.method.lower() == "source":
+                outputs = post_adapt_outputs = source_outputs
+                adapter.batches_seen += 1
+                adapter.samples_seen += int(inputs.shape[0])
+            else:
+                device_inputs = inputs.to(device)
+                if continual_enabled:
+                    outputs = adapter.predict(device_inputs).detach().clone()
+                    adapter(device_inputs)
+                else:
+                    outputs = adapter(device_inputs)
+                post_adapt_outputs = adapter.predict(device_inputs)
+            source_domain_meter.update(source_outputs, labels)
             domain_meter.update(outputs, labels)
-            post_adapt_meter.update(post_outputs, labels)
+            post_adapt_domain_meter.update(post_adapt_outputs, labels)
             prediction_rows.extend(
                 _prediction_rows(
                     sample_ids,
                     labels,
                     outputs,
-                    post_outputs,
+                    post_adapt_outputs,
                     position,
                     domain,
                     domain_name,
@@ -934,44 +1063,55 @@ def run_experiment(args) -> Dict[str, Any]:
             )
 
         overall.merge(domain_meter)
-        post_adapt_overall.merge(post_adapt_meter)
-        source_overall.merge(source_meter)
+        post_adapt_overall.merge(post_adapt_domain_meter)
+        source_overall.merge(source_domain_meter)
         metrics = domain_meter.compute()
-        post_metrics = post_adapt_meter.compute()
-        source_metrics = source_meter.compute()
+        post_adapt_metrics = post_adapt_domain_meter.compute()
+        source_metrics = source_domain_meter.compute()
         source_baseline_rows.append({
+            "position": position, "domain": domain, "domain_name": domain_name,
+            "sample_ids_sha256": _sample_digest(target_dataset.sample_ids),
+            **source_metrics,
+        })
+        source_reference.persist()
+        print(
+            f"[source reference] domain={domain} "
+            f"cached={source_reference.samples_reused - reused_before} "
+            f"forwarded_missing={source_reference.samples_forwarded - forwarded_before}"
+        )
+        source_retention = (
+            source_before
+            if args.method.lower() == "source"
+            else evaluate_adapter(
+                adapter,
+                source_validation_loader,
+                device,
+                spec.num_classes,
+            )
+        )
+        diagnostic_row: Dict[str, Any] = {
             "position": position,
             "domain": domain,
             "domain_name": domain_name,
             "sample_ids_sha256": _sample_digest(target_dataset.sample_ids),
-            **source_metrics,
-        })
-        retention = (
-            source_before
-            if args.method.lower() == "source"
-            else evaluate_adapter(
-                adapter, source_validation_loader, device, spec.num_classes
-            )
-        )
-        row: Dict[str, Any] = {
-            "position": position,
-            "domain": domain,
-            "domain_name": domain_name,
             **metrics,
             **{f"source_{key}": value for key, value in source_metrics.items()},
             **relative_improvement(metrics, source_metrics),
             **{
                 f"post_adapt_{key}": value
-                for key, value in relative_improvement(post_metrics, source_metrics).items()
+                for key, value in post_adapt_metrics.items()
+                if key != "samples"
             },
             **{
                 f"post_adapt_{key}": value
-                for key, value in post_metrics.items()
-                if key != "samples"
+                for key, value in relative_improvement(
+                    post_adapt_metrics,
+                    source_metrics,
+                ).items()
             },
-            "source_retention_accuracy": retention["accuracy"],
+            "source_retention_accuracy": source_retention["accuracy"],
             "source_forgetting": (
-                source_before["accuracy"] - retention["accuracy"]
+                source_before["accuracy"] - source_retention["accuracy"]
             ),
         }
         if forgetting_row is not None:
@@ -991,7 +1131,7 @@ def run_experiment(args) -> Dict[str, Any]:
                 }
             )
             target_forgetting_rows.append(forgetting_row)
-            row.update(
+            diagnostic_row.update(
                 {
                     "target_domain_occurrence": forgetting_row["occurrence"],
                     "target_forgetting_accuracy_drop_pp": forgetting_row[
@@ -1005,15 +1145,32 @@ def run_experiment(args) -> Dict[str, Any]:
                     ],
                 }
             )
-        domain_rows.append(row)
+        domain_rows.append(diagnostic_row)
+        # Keep full diagnostics in summary.json and an explicit CSV schema.
+        row: Dict[str, Any] = {
+            "position": position,
+            "domain": domain,
+            "domain_name": domain_name,
+            "samples": metrics["samples"],
+            "online_acc": metrics["accuracy"],
+            "source_acc": source_metrics["accuracy"],
+            "gain_pp": metrics["accuracy"] - source_metrics["accuracy"],
+            "post_adapt_acc": post_adapt_metrics["accuracy"],
+            "balanced_acc": metrics["balanced_accuracy"],
+            "source_retention": source_retention["accuracy"],
+        }
+        domain_csv_rows.append(row)
+        # Mirror of the per-target console print, row for row.
+        console_csv_rows.append({"line": "target", **row})
         print(
             f"[target {position:02d}/{len(target_domains):02d}] "
-            f"domain={domain} samples={int(metrics['samples'])} "
-            f"online_acc={metrics['accuracy']:.2f}% "
-            f"source_acc={source_metrics['accuracy']:.2f}% "
-            f"gain={metrics['accuracy'] - source_metrics['accuracy']:+.2f}pp "
-            f"post_adapt_acc={post_metrics['accuracy']:.2f}% "
-            f"source_retention={retention['accuracy']:.2f}%"
+            f"domain={row['domain']} samples={int(row['samples'])} "
+            f"online_acc={row['online_acc']:.2f}% "
+            f"source_acc={row['source_acc']:.2f}% "
+            f"gain={row['gain_pp']:+.2f}pp "
+            f"post_adapt_acc={row['post_adapt_acc']:.2f}% "
+            f"balanced_acc={row['balanced_acc']:.2f}% "
+            f"source_retention={row['source_retention']:.2f}%"
         )
         if forgetting_row is not None and forgetting_row["is_repeat"]:
             print(
@@ -1028,15 +1185,21 @@ def run_experiment(args) -> Dict[str, Any]:
                 f"{forgetting_row['accuracy_change_from_first_occurrence_pp']:+.2f}pp"
             )
 
-    online_metrics = overall.compute()
-    post_metrics = post_adapt_overall.compute()
-    source_metrics = source_overall.compute()
-    source_domain_average = float(np.mean([row["accuracy"] for row in source_baseline_rows]))
-    domain_average = float(np.mean([row["accuracy"] for row in domain_rows]))
-    post_domain_average = float(
+    overall_metrics = overall.compute()
+    post_adapt_overall_metrics = post_adapt_overall.compute()
+    source_baseline_metrics = source_overall.compute()
+    source_domain_average_accuracy = float(
+        np.mean([row["source_accuracy"] for row in domain_rows])
+    )
+    domain_average_accuracy = float(np.mean([row["accuracy"] for row in domain_rows]))
+    post_adapt_domain_average_accuracy = float(
         np.mean([row["post_adapt_accuracy"] for row in domain_rows])
     )
-    final_retention = domain_rows[-1]["source_retention_accuracy"]
+    # Average over target-domain visits, including repeated visits.
+    average_source_retention = float(
+        np.mean([row["source_retention_accuracy"] for row in domain_rows])
+    )
+    final_source_retention = domain_rows[-1]["source_retention_accuracy"]
     target_forgetting = (
         _target_forgetting_summary(
             target_forgetting_rows,
@@ -1080,12 +1243,18 @@ def run_experiment(args) -> Dict[str, Any]:
             "single_pass": not target_forgetting_enabled,
             "reset_between_domains": False,
             "target_labels_used_for_adaptation": False,
-            "primary_prediction_stage": (
-                "post_adapt" if args.method.lower() == "ttt" else "online_pre_adapt"
-            ),
             "post_adapt_reprediction": True,
             "post_adapt_reprediction_updates_model": False,
-            "stream_order": stream_order,
+            "primary_prediction_stage": (
+                "post_adapt" if args.method.lower() == "ttt" and not continual_enabled else "online_pre_adapt"
+            ),
+            "stream_order": "timestamp_fault_onsets" if continual_enabled else stream_order,
+            "continual": continual_metadata,
+            "dirichlet_beta": data.dirichlet_beta if stream_order == "dirichlet" else None,
+            "dirichlet_num_chunks": (
+                data.dirichlet_num_chunks or spec.num_classes
+                if stream_order == "dirichlet" else None
+            ),
         },
         "dataset": {
             "name": spec.name,
@@ -1112,39 +1281,57 @@ def run_experiment(args) -> Dict[str, Any]:
             "checkpoint_metadata": checkpoint_metadata,
             "evaluation": source_evaluation,
         },
+        "source_reference": source_reference.statistics(),
         "source_baseline": {
-            **source_metrics,
-            "domain_average_accuracy": source_domain_average,
+            **source_baseline_metrics,
+            "domain_average_accuracy": source_domain_average_accuracy,
             "definition": "Frozen source checkpoint evaluated on exactly the current target samples",
             "matching_keys": ["domain", "position", "sample_id"],
             "source_checkpoint": args.source_checkpoint or str(run_dir / "source_checkpoint"),
             "domains": source_baseline_rows,
         },
         "online": {
-            **online_metrics,
-            **relative_improvement(online_metrics, source_metrics),
-            "domain_average_accuracy_gain_pp": domain_average - source_domain_average,
-            "domain_average_accuracy_relative_gain_pct": (
-                100.0 * (domain_average - source_domain_average) / source_domain_average
-                if source_domain_average else None
+            **overall_metrics,
+            "source_accuracy": source_baseline_metrics["accuracy"],
+            "source_domain_average_accuracy": source_domain_average_accuracy,
+            **relative_improvement(overall_metrics, source_baseline_metrics),
+            "domain_average_accuracy_gain_pp": (
+                domain_average_accuracy - source_domain_average_accuracy
             ),
-            "domain_average_accuracy": domain_average,
-            "final_source_retention_accuracy": final_retention,
+            "domain_average_accuracy_relative_gain_pct": (
+                100.0
+                * (domain_average_accuracy - source_domain_average_accuracy)
+                / source_domain_average_accuracy
+                if source_domain_average_accuracy
+                else None
+            ),
+            "domain_average_accuracy": domain_average_accuracy,
+            "average_source_retention_accuracy": average_source_retention,
+            "final_source_retention_accuracy": final_source_retention,
             "final_source_forgetting": (
-                source_before["accuracy"] - final_retention
+                source_before["accuracy"] - final_source_retention
             ),
         },
         "post_adapt": {
-            **post_metrics,
-            **relative_improvement(post_metrics, source_metrics),
-            "domain_average_accuracy_gain_pp": post_domain_average - source_domain_average,
-            "domain_average_accuracy_relative_gain_pct": (
-                100.0 * (post_domain_average - source_domain_average) / source_domain_average
-                if source_domain_average else None
+            **post_adapt_overall_metrics,
+            **relative_improvement(
+                post_adapt_overall_metrics,
+                source_baseline_metrics,
             ),
-            "domain_average_accuracy": post_domain_average,
+            "domain_average_accuracy_gain_pp": (
+                post_adapt_domain_average_accuracy - source_domain_average_accuracy
+            ),
+            "domain_average_accuracy_relative_gain_pct": (
+                100.0
+                * (post_adapt_domain_average_accuracy - source_domain_average_accuracy)
+                / source_domain_average_accuracy
+                if source_domain_average_accuracy
+                else None
+            ),
+            "domain_average_accuracy": post_adapt_domain_average_accuracy,
             "definition": (
-                "Same-batch prediction after adaptation, without another update"
+                "Re-predict the same batch after its adaptation step without "
+                "performing an additional update"
             ),
         },
         "adapter": adapter.statistics(),
@@ -1157,25 +1344,70 @@ def run_experiment(args) -> Dict[str, Any]:
     if public_args.get("hf_token"):
         public_args["hf_token"] = "<redacted>"
     _write_json(run_dir / "config.json", public_args)
-    _write_json(run_dir / "source_history.json", {"epochs": source_history})
-    _write_json(run_dir / "summary.json", summary)
     _write_json(run_dir / "source_baseline.json", summary["source_baseline"])
     _write_csv(run_dir / "source_baseline.csv", source_baseline_rows)
-    _write_csv(run_dir / "domains.csv", domain_rows)
+    _write_json(run_dir / "source_history.json", {"epochs": source_history})
+    _write_json(run_dir / "summary.json", summary)
+    _write_csv(run_dir / "domains.csv", domain_csv_rows)
+    # The printed results, verbatim: one row per `[target ..]` console line,
+    # then one row for the final summary line.
+    console_csv_rows.append(
+        {
+            "line": "summary",
+            "online_accuracy": overall_metrics["accuracy"],
+            "post_adapt_accuracy": post_adapt_overall_metrics["accuracy"],
+            "domain_average": domain_average_accuracy,
+            "source_retention_average": average_source_retention,
+        }
+    )
+    _write_csv(
+        run_dir / "print_results.csv",
+        console_csv_rows,
+        columns=[
+            "line", "position", "domain", "domain_name", "samples",
+            "online_acc", "source_acc", "gain_pp", "post_adapt_acc",
+            "balanced_acc", "source_retention",
+            "online_accuracy", "post_adapt_accuracy", "domain_average",
+            "source_retention_average",
+        ],
+    )
+    # Headline aggregates in CSV form: the overall online accuracy and the
+    # visit-averaged source retention were previously console/JSON only.
+    _write_csv(
+        run_dir / "results.csv",
+        [
+            {
+                "method": args.method.lower(),
+                "samples": overall_metrics["samples"],
+                "online_accuracy": overall_metrics["accuracy"],
+                "online_balanced_accuracy": overall_metrics["balanced_accuracy"],
+                "post_adapt_accuracy": post_adapt_overall_metrics["accuracy"],
+                "domain_average_accuracy": domain_average_accuracy,
+                "source_accuracy": source_baseline_metrics["accuracy"],
+                "source_domain_average_accuracy": source_domain_average_accuracy,
+                "source_retention_average": average_source_retention,
+                "source_retention_final": final_source_retention,
+                "source_forgetting_final": (
+                    source_before["accuracy"] - final_source_retention
+                ),
+                "run_dir": str(run_dir),
+            }
+        ],
+    )
+    if continual_enabled:
+        save_continual_report(run_dir, prediction_rows, continual_elapsed,
+                              continual_metadata, args.continual_window_size,
+                              spec.num_classes)
     _write_csv(run_dir / "predictions.csv", prediction_rows)
     if target_forgetting_enabled:
         _write_json(run_dir / "target_forgetting.json", target_forgetting)
-        _write_csv(
-            run_dir / "target_forgetting.csv",
-            target_forgetting_rows,
-        )
-        _write_csv(
-            run_dir / "target_forgetting_occurrences.csv",
-            target_forgetting["occurrence_means"],
+        _write_target_forgetting_csvs(
+            run_dir, target_forgetting_rows, target_forgetting["occurrence_means"]
         )
     print(
-        f"Online accuracy={online_metrics['accuracy']:.2f}% "
-        f"post-adapt accuracy={post_metrics['accuracy']:.2f}% "
-        f"domain-average={domain_average:.2f}% results={run_dir}"
+        f"Online accuracy={overall_metrics['accuracy']:.2f}% "
+        f"post-adapt accuracy={post_adapt_overall_metrics['accuracy']:.2f}% "
+        f"domain-average={domain_average_accuracy:.2f}% "
+        f"source_retention-average={average_source_retention:.2f}% results={run_dir}"
     )
     return summary

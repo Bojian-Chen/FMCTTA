@@ -30,9 +30,11 @@ class BuildConfig:
     classes: Tuple[str, ...]
     domains: Tuple[str, ...]
     channels: Tuple[str, ...] = ()
-    # None preserves every available non-overlapping window in each domain.
+    # None preserves every complete window at the configured stride.
     samples_per_class: Optional[int] = 100
     window_size_points: int = DEFAULT_WINDOW_SIZE_POINTS
+    # None preserves the historical behavior: stride equals window size.
+    stride_points: Optional[int] = None
     selection: str = "uniform"
     target_stream_order: str = "interleaved"
     name: str = ""
@@ -40,6 +42,14 @@ class BuildConfig:
     @property
     def dataset_name(self) -> str:
         return self.name or f"{self.dataset}_custom"
+
+    @property
+    def resolved_stride_points(self) -> int:
+        return (
+            self.window_size_points
+            if self.stride_points is None
+            else self.stride_points
+        )
 
 
 @dataclass
@@ -123,6 +133,11 @@ def config_from_mapping(
         window_size_points=int(
             content.get("window_size_points", DEFAULT_WINDOW_SIZE_POINTS)
         ),
+        stride_points=(
+            None
+            if content.get("stride_points") is None
+            else int(content["stride_points"])
+        ),
         selection=str(content.get("selection", "uniform")),
         target_stream_order=str(
             content.get("target_stream_order", "interleaved")
@@ -154,15 +169,18 @@ def validate_config(
         raise ValueError("samples_per_class must be at least 2 for source train/validation splitting")
     if config.window_size_points < 1:
         raise ValueError("window_size_points must be positive")
+    if config.resolved_stride_points < 1:
+        raise ValueError("stride_points must be positive")
     if config.selection not in {"head", "uniform"}:
         raise ValueError("selection must be 'head' or 'uniform'")
     if config.target_stream_order not in {
         "class_block",
         "interleaved",
         "shuffled",
+        "dirichlet",
     }:
         raise ValueError(
-            "target_stream_order must be class_block, interleaved, or shuffled"
+            "target_stream_order must be class_block, interleaved, shuffled, or dirichlet"
         )
     if len(config.classes) < 2:
         raise ValueError("At least two classes are required")
@@ -203,7 +221,10 @@ def validate_raw_layout(config: BuildConfig) -> Dict[str, int]:
 
 def _selection_indices(available: int, requested: int, method: str) -> np.ndarray:
     if available < requested:
-        raise ValueError(f"Only {available} non-overlapping point windows are available, but {requested} were requested")
+        raise ValueError(
+            f"Only {available} point windows are available, but {requested} "
+            "were requested"
+        )
     if method == "head":
         return np.arange(requested, dtype=np.int64)
     indices = np.linspace(0, available - 1, requested, dtype=np.int64)
@@ -262,6 +283,7 @@ def _build_arrays(
                 class_name,
                 domain_name,
                 config.window_size_points,
+                config.resolved_stride_points,
             )
             if batch.values.shape[1:] != (
                 len(adapter.channel_names),
@@ -297,7 +319,7 @@ def _build_arrays(
                 {
                     "domain": domain_name,
                     "class": class_name,
-                    "available_non_overlapping_windows": int(len(batch.values)),
+                    "available_windows": int(len(batch.values)),
                     "selected_windows": block_size,
                 }
             )
@@ -319,6 +341,7 @@ def _manifest(
     total = int(total_samples)
     domain_counts = [int(count) for count in samples_per_class_by_domain]
     window_seconds = config.window_size_points / adapter.sampling_frequency
+    stride_seconds = config.resolved_stride_points / adapter.sampling_frequency
     channels = config.channels or adapter.channel_names
     class_mapping = [
         {
@@ -384,9 +407,9 @@ def _manifest(
         "sampling_frequency_hz": adapter.sampling_frequency,
         "window_size_points": config.window_size_points,
         "window_seconds": window_seconds,
-        "stride_points": config.window_size_points,
-        "stride_seconds": window_seconds,
-        "overlap": False,
+        "stride_points": config.resolved_stride_points,
+        "stride_seconds": stride_seconds,
+        "overlap": config.resolved_stride_points < config.window_size_points,
         "resampling": "none",
         "normalization": "none",
         "channels": list(channels),
@@ -400,6 +423,10 @@ def _manifest(
         "available_domain_labels": list(range(len(config.domains))),
         "source_candidate_domains": source_candidate_domains,
         "target_stream_domains": target_stream_domains,
+        "transition_segment_domains": [
+            domain["domain_label"] for domain in domain_mapping
+            if domain["role"] == "transition_segment"
+        ],
         "recommended_source_domains": recommended_source_domains,
         "recommended_target_domains": recommended_target_domains,
         "condition_profile": [
@@ -445,6 +472,7 @@ def _add_mat_metadata(
     samples_per_class_by_domain: Sequence[int],
 ) -> None:
     window_seconds = config.window_size_points / adapter.sampling_frequency
+    stride_seconds = config.resolved_stride_points / adapter.sampling_frequency
     channels = config.channels or adapter.channel_names
     selected_domains = [adapter.domain(name) for name in config.domains]
     arrays.update(
@@ -470,7 +498,12 @@ def _add_mat_metadata(
             ),
             "window_seconds": np.asarray([[window_seconds]], dtype=np.float64),
             "stride_points": np.asarray(
-                [[config.window_size_points]], dtype=np.int64
+                [[config.resolved_stride_points]], dtype=np.int64
+            ),
+            "stride_seconds": np.asarray([[stride_seconds]], dtype=np.float64),
+            "overlap": np.asarray(
+                [[config.resolved_stride_points < config.window_size_points]],
+                dtype=np.bool_,
             ),
             "samples_per_class": np.asarray(
                 [[max(samples_per_class_by_domain)]], dtype=np.int64
@@ -626,6 +659,7 @@ def _build_all_windows_dataset(
                         class_name,
                         domain_name,
                         config.window_size_points,
+                        config.resolved_stride_points,
                     )
                     if batch.values.shape[1:] != (
                         len(adapter.channel_names),
@@ -639,7 +673,7 @@ def _build_all_windows_dataset(
                     if block_size < 2:
                         raise ValueError(
                             f"{domain_name}/{class_name} has only {block_size} "
-                            "complete non-overlapping windows"
+                            "complete windows"
                         )
                     if domain_count is None:
                         domain_count = block_size
@@ -708,7 +742,7 @@ def _build_all_windows_dataset(
                         {
                             "domain": domain_name,
                             "class": class_name,
-                            "available_non_overlapping_windows": block_size,
+                            "available_windows": block_size,
                             "selected_windows": block_size,
                         }
                     )

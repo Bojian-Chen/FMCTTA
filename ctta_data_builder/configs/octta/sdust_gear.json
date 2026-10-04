@@ -1,0 +1,44 @@
+{
+  "dataset": "SDUST-Gear",
+  "name": "SDUST_Gear_1024point_custom",
+  "raw_root": "/home/xyc3090/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "output": "../../../data/ctta_custom/SDUST_Gear_1024point_custom.mat",
+  "classes": [
+    "NC",
+    "太阳断裂",
+    "太阳点蚀",
+    "太阳磨损",
+    "行星断裂",
+    "行星点蚀",
+    "行星磨损"
+  ],
+  "channels": [
+    "left_z"
+  ],
+  "domains": {
+    "0": "1500rpm_0.5A",
+    "1": "1800rpm_0.5A",
+    "2": "2000rpm_0.5A",
+    "3": "1000rpm_load_0to0.2A",
+    "4": "1000rpm_load_0to0.35A",
+    "5": "1000rpm_load_0to0.5A",
+    "6": "1500rpm_load_0to0.2A",
+    "7": "1500rpm_load_0to0.35A",
+    "8": "1500rpm_load_0to0.5A",
+    "9": "1800rpm_load_0to0.2A",
+    "10": "1800rpm_load_0to0.35A",
+    "11": "1800rpm_load_0to0.5A",
+    "12": "2000rpm_load_0to0.2A",
+    "13": "2000rpm_load_0to0.35A",
+    "14": "2000rpm_load_0to0.5A",
+    "15": "2500rpm_load_0to0.2A",
+    "16": "2500rpm_load_0to0.35A",
+    "17": "2500rpm_load_0to0.5A",
+    "18": "fluctuating_speed_and_load"
+  },
+  "samples_per_class": 1000,
+  "window_size_points": 1024,
+  "stride_points": 512,
+  "selection": "uniform",
+  "target_stream_order": "interleaved"
+}

@@ -1,0 +1,31 @@
+{
+  "dataset": "WT",
+  "name": "WT_1024point_custom",
+  "raw_root": "/home/xyc3090/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "output": "../../../data/ctta_custom/WT_1024point_custom.mat",
+  "classes": [
+    "healthy",
+    "broken",
+    "missing_tooth",
+    "root_crack",
+    "wear"
+  ],
+  "channels": [
+    "vibration_y"
+  ],
+  "domains": {
+    "0": "20",
+    "1": "25",
+    "2": "30",
+    "3": "35",
+    "4": "40",
+    "5": "45",
+    "6": "50",
+    "7": "55"
+  },
+  "samples_per_class": null,
+  "window_size_points": 1024,
+  "stride_points": 512,
+  "selection": "uniform",
+  "target_stream_order": "interleaved"
+}

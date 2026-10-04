@@ -378,3 +378,54 @@ def test_phmfd_yaml_matrix_is_complete_and_valid(
                 assert f"{dataset_tag}-{run_tag}-source-seed2025" in Path(
                     args.source_checkpoint
                 ).parts
+
+
+def test_dirichlet_cli_overrides_inherited_yaml() -> None:
+    args = parse_args(
+        [
+            "--config",
+            "configs/SDUST_Bearing/unifault/note.yaml",
+            "--stream_order",
+            "dirichlet",
+            "--dirichlet_beta",
+            "0.5",
+            "--dirichlet_num_chunks",
+            "8",
+        ]
+    )
+    validate_args(args)
+    assert args.stream_order == "dirichlet"
+    assert args.dirichlet_beta == 0.5
+    assert args.dirichlet_num_chunks == 8
+    assert parse_args([]).dirichlet_beta == 0.1
+    assert parse_args([]).dirichlet_num_chunks is None
+
+
+def test_dirichlet_yaml_inheritance(tmp_path) -> None:
+    (tmp_path / "base.yaml").write_text(
+        "protocol:\n  stream_order: dirichlet\n  dirichlet_beta: 0.2\n  dirichlet_num_chunks: 3\n"
+    )
+    (tmp_path / "method.yaml").write_text(
+        "base: base.yaml\nprotocol:\n  method: note\n"
+    )
+    args = parse_args(["--config", str(tmp_path / "method.yaml")])
+    validate_args(args)
+    assert (args.stream_order, args.dirichlet_beta, args.dirichlet_num_chunks) == (
+        "dirichlet",
+        0.2,
+        3,
+    )
+
+
+@pytest.mark.parametrize(
+    "option,value",
+    [
+        ("--dirichlet_beta", "0"),
+        ("--dirichlet_beta", "nan"),
+        ("--dirichlet_beta", "inf"),
+        ("--dirichlet_num_chunks", "0"),
+    ],
+)
+def test_dirichlet_cli_rejects_invalid_values(option, value) -> None:
+    with pytest.raises(ValueError, match="dirichlet"):
+        validate_args(parse_args(["--stream_order", "dirichlet", option, value]))

@@ -128,6 +128,12 @@ generated manifests or an explicit `--data_root`. The raw-data preprocessing
 instructions are available in
 [PHMFD-data-preprocessing](https://github.com/Bojian-Chen/PHMFD-data-preprocessing).
 
+The local [dataset builder](ctta_data_builder/README_zh.md) supports SK, PU, WT,
+SDUST-Bearing/Gear, MCC5-Gearbox/Motor, and HUST-Gearbox, with configurable native
+window lengths and strides. Current OCTTA templates are included under
+`ctta_data_builder/configs/octta/`; generated manifests contain `fmctta_spec`
+and load directly through `--dataset_manifest`.
+
 ## Installation
 
 ```bash

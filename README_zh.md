@@ -102,10 +102,12 @@ pip install -r requirements.txt
 公开模型无需 Hugging Face token。数据默认读取 `data/ctta_custom`；原始数据预处理说明见
 [PHMFD-data-preprocessing](https://github.com/Bojian-Chen/PHMFD-data-preprocessing)。
 
-需要从原始数据自定义 PU、WT、SDUST-Bearing/Gear、MCC5-Gearbox/Motor 或 HUST-Gearbox 时，使用
+需要从原始数据自定义 SK、PU、WT、SDUST-Bearing/Gear、MCC5-Gearbox/Motor 或 HUST-Gearbox 时，使用
 [ctta_data_builder/README_zh.md](ctta_data_builder/README_zh.md)。
-该构建器默认生成原采样率下的 1024 点非重叠窗口，也可用 `window_size_points` 覆盖；不做重采样，并输出可通过
-`--dataset_manifest` 直接加载的动态数据集描述。
+该构建器默认生成原采样率下的 1024 点非重叠窗口，可用 `window_size_points` 和
+`stride_points` 配置窗口长度和步长；不做重采样，并输出可通过 `--dataset_manifest`
+直接加载的动态数据集描述。当前 OCTTA 的八套制作模板位于
+`ctta_data_builder/configs/octta/`，其中 HUST 模板包含 5 个变转速域。
 
 ## 快速开始
 

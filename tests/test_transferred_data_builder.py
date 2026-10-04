@@ -237,7 +237,8 @@ def test_build_outputs_octta_manifest_and_point_metadata(
             return {}
 
         def load_windows(
-            self, raw_root, class_name, domain_name, window_size_points
+            self, raw_root, class_name, domain_name, window_size_points,
+            stride_points=None,
         ):
             value = self.domain_names.index(domain_name) * 10
             value += self.class_names.index(class_name)
@@ -326,7 +327,8 @@ def test_full_window_build_preserves_variable_domain_lengths_and_time_order(
             return {}
 
         def load_windows(
-            self, raw_root, class_name, domain_name, window_size_points
+            self, raw_root, class_name, domain_name, window_size_points,
+            stride_points=None,
         ):
             count = 3 if domain_name == "source" else 5
             class_id = self.class_names.index(class_name)

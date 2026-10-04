@@ -1,0 +1,52 @@
+{
+  "dataset": "SK",
+  "name": "SK_1024point_custom",
+  "raw_root": "../../data/raw/SK",
+  "output": "../../../data/ctta_custom/SK_1024point_custom.mat",
+  "classes": [
+    "NC",
+    "IF0.2",
+    "IF0.4",
+    "IF0.6",
+    "OF0.2",
+    "OF0.4",
+    "OF0.6",
+    "RF0.2",
+    "RF0.4",
+    "RF0.6"
+  ],
+  "channels": [
+    "point2_z"
+  ],
+  "domains": {
+    "0": "500rpm_0N",
+    "1": "500rpm_20N",
+    "2": "500rpm_40N",
+    "3": "500rpm_60N",
+    "4": "1000rpm_0N",
+    "5": "1000rpm_20N",
+    "6": "1000rpm_40N",
+    "7": "1000rpm_60N",
+    "8": "1500rpm_0N",
+    "9": "1500rpm_20N",
+    "10": "1500rpm_40N",
+    "11": "1500rpm_60N",
+    "12": "2000rpm_0N",
+    "13": "2000rpm_20N",
+    "14": "2000rpm_40N",
+    "15": "2000rpm_60N",
+    "16": "2500rpm_0N",
+    "17": "2500rpm_20N",
+    "18": "2500rpm_40N",
+    "19": "2500rpm_60N",
+    "20": "3000rpm_0N",
+    "21": "3000rpm_20N",
+    "22": "3000rpm_40N",
+    "23": "3000rpm_60N"
+  },
+  "samples_per_class": null,
+  "window_size_points": 1024,
+  "stride_points": 512,
+  "selection": "uniform",
+  "target_stream_order": "interleaved"
+}

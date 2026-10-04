@@ -66,6 +66,10 @@ class FaultDataModule:
         target_samples_per_class: Optional[Sequence[Sequence[int]]] = None,
         source_domains: Optional[Sequence[int]] = None,
         reuse_repeated_target_samples: bool = False,
+        dirichlet_beta: float = 0.1,
+        dirichlet_num_chunks: Optional[int] = None,
+        allow_source_target_recording_overlap: bool = False,
+        source_seed: int = 2025,
     ) -> None:
         self.spec = spec
         if source_domains is None:
@@ -86,7 +90,11 @@ class FaultDataModule:
         self.normalization = normalization
         self.source_validation_ratio = source_validation_ratio
         self.stream_order = stream_order
+        self.dirichlet_beta = dirichlet_beta
+        self.dirichlet_num_chunks = dirichlet_num_chunks
         self.seed = seed
+        self.source_seed = source_seed
+        self.allow_source_target_recording_overlap = allow_source_target_recording_overlap
         self.allow_repeated_target_samples = allow_repeated_target_samples
         self.reuse_repeated_target_samples = reuse_repeated_target_samples
         self.max_source_per_class = max_source_per_class
@@ -143,7 +151,7 @@ class FaultDataModule:
                 if domain not in self.source_domains
                 and self.spec.domain_groups[domain] in source_groups
             ]
-            if conflicting_targets:
+            if conflicting_targets and not self.allow_source_target_recording_overlap:
                 raise ValueError(
                     "Source and target domains cannot come from the same raw "
                     "recording group; conflicting target domains: "
@@ -167,10 +175,20 @@ class FaultDataModule:
                 "normalization must be zscore, minmax, sample_zscore, "
                 "sample_minmax, or none"
             )
-        if self.stream_order not in {"shuffled", "class_block", "interleaved"}:
+        if self.stream_order not in {
+            "shuffled", "class_block", "interleaved", "dirichlet"
+        }:
             raise ValueError(
-                "stream_order must be shuffled, class_block, or interleaved"
+                "stream_order must be shuffled, class_block, interleaved, or dirichlet"
             )
+        if not np.isfinite(self.dirichlet_beta) or self.dirichlet_beta <= 0:
+            raise ValueError("dirichlet_beta must be finite and positive")
+        if self.dirichlet_num_chunks is not None and (
+            not isinstance(self.dirichlet_num_chunks, (int, np.integer))
+            or isinstance(self.dirichlet_num_chunks, bool)
+            or self.dirichlet_num_chunks < 1
+        ):
+            raise ValueError("dirichlet_num_chunks must be a positive integer")
         if self.max_source_per_class is not None:
             if self.max_source_per_class < 1:
                 raise ValueError("max_source_per_class must be positive")
@@ -257,6 +275,12 @@ class FaultDataModule:
         if "data" not in content or "label" not in content:
             raise ValueError(f"{path} must contain 'data' and 'label' arrays")
 
+        self.window_start_sec = (
+            np.asarray(content["window_start_sec"], dtype=np.float64).reshape(-1)
+            if "window_start_sec" in content else None
+        )
+        if self.window_start_sec is not None and len(self.window_start_sec) != np.asarray(content["label"]).size:
+            raise ValueError("window_start_sec must have one timestamp per sample")
         signals = np.asarray(content["data"], dtype=np.float32)
         signals = np.squeeze(signals)
         labels = np.asarray(content["label"]).reshape(-1).astype(np.int64)
@@ -297,7 +321,7 @@ class FaultDataModule:
             with h5py.File(path, "r") as handle:
                 return {
                     name: np.asarray(handle[name])
-                    for name in ("data", "label")
+                    for name in ("data", "label", "window_start_sec")
                     if name in handle
                 }
         return sio.loadmat(path)
@@ -326,9 +350,9 @@ class FaultDataModule:
         for domain in self.source_domains:
             # Keep the legacy single-source split exactly reproducible.
             rng_seed = (
-                self.seed
+                self.source_seed
                 if len(self.source_domains) == 1
-                else self.seed + 1009 * (domain + 1)
+                else self.source_seed + 1009 * (domain + 1)
             )
             rng = np.random.RandomState(rng_seed)
             domain_ids = self._domain_indices(domain)
@@ -354,7 +378,7 @@ class FaultDataModule:
                 train.append(class_ids[validation_size:])
         train_ids = np.concatenate(train)
         validation_ids = np.concatenate(validation)
-        rng = np.random.RandomState(self.seed)
+        rng = np.random.RandomState(self.source_seed)
         rng.shuffle(train_ids)
         rng.shuffle(validation_ids)
         return train_ids, validation_ids
@@ -469,6 +493,8 @@ class FaultDataModule:
         domain: int,
         stream_position: int,
     ) -> np.ndarray:
+        if self.stream_order == "dirichlet":
+            return self._dirichlet_target_ids(by_class, domain, stream_position)
         if self.stream_order == "class_block":
             return np.concatenate(by_class)
         if self.stream_order == "interleaved":
@@ -487,6 +513,80 @@ class FaultDataModule:
         )
         rng.shuffle(ids)
         return ids
+
+    def _dirichlet_target_ids(
+        self, by_class: Sequence[np.ndarray], domain: int, stream_position: int
+    ) -> np.ndarray:
+        """NOTE's class-wise Dirichlet partition and class blocks within tokens.
+
+        Matches learner/dnn.py::target_data_processing in TaesikGong/NOTE:
+        shuffle each class, balance token sizes during partitioning, shuffle the
+        class order inside each token, then concatenate tokens. Only already
+        selected target IDs are reordered; labels never enter adaptation.
+        """
+        total = sum(len(ids) for ids in by_class)
+        if total == 0:
+            return np.empty(0, dtype=np.int64)
+        chunks = self.dirichlet_num_chunks or min(self.spec.num_classes, total)
+        if chunks > total:
+            raise ValueError(
+                "dirichlet_num_chunks cannot exceed selected target samples"
+            )
+        # NOTE uses 10; reduce it for small/debug streams to avoid impossible
+        # rejection sampling. Bound retries instead of NOTE's unbounded loop.
+        minimum = min(10, total // chunks)
+        rng = np.random.RandomState(
+            self.seed + 1009 * (domain + 1) + 7919 * (stream_position + 1)
+        )
+        for _ in range(1000):
+            sizes = np.zeros(chunks, dtype=np.int64)
+            partitions = [[] for _ in range(chunks)]
+            for class_ids in by_class:
+                ids = np.asarray(class_ids, dtype=np.int64).copy()
+                if len(ids) == 0:
+                    for token in partitions:
+                        token.append(ids)
+                    continue
+                rng.shuffle(ids)
+                if 1e-3 <= self.dirichlet_beta <= 1e100:
+                    proportions = rng.dirichlet(np.full(chunks, self.dirichlet_beta))
+                else:
+                    # Avoid underflow/hangs in numpy's small-alpha sampler,
+                    # and overflow for very large finite concentrations.
+                    beta = self.dirichlet_beta
+                    gamma = rng.standard_gamma(
+                        beta + 1 if beta < 1 else beta, chunks
+                    )
+                    log_weights = np.log(gamma).astype(np.longdouble)
+                    if beta < 1:
+                        uniform = np.maximum(
+                            rng.random_sample(chunks), np.finfo(float).tiny
+                        )
+                        log_weights += (
+                            np.log(uniform).astype(np.longdouble) / beta
+                        )
+                    proportions = np.asarray(
+                        np.exp(log_weights - log_weights.max()), dtype=float
+                    )
+                proportions *= sizes < total / chunks
+                if proportions.sum() == 0:
+                    # Underflow can leave all mass on a full token.
+                    proportions = (sizes < total / chunks).astype(float)
+                proportions /= proportions.sum()
+                cuts = (np.cumsum(proportions) * len(ids)).astype(int)[:-1]
+                for token, part in enumerate(np.split(ids, cuts)):
+                    partitions[token].append(part)
+                    sizes[token] += len(part)
+            if sizes.min() >= minimum:
+                ordered = []
+                for token in partitions:
+                    for class_id in rng.permutation(len(by_class)):
+                        ordered.append(token[class_id])
+                return np.concatenate(ordered)
+        raise ValueError(
+            "Could not generate a NOTE Dirichlet stream with nonempty chunks "
+            "after 1000 attempts; increase dirichlet_beta or reduce dirichlet_num_chunks"
+        )
 
     def _build_target_datasets(self) -> Dict[int, FaultDomainDataset]:
         if self.max_target_per_domain is not None:
@@ -546,6 +646,7 @@ class FaultDataModule:
             * self.spec.num_classes
         )
         return {
+            "allow_source_target_recording_overlap": self.allow_source_target_recording_overlap,
             "source_domains": list(self.source_domains),
             "source_samples_per_class": list(source_counts),
             "source_samples_per_class_by_domain": {
@@ -607,6 +708,19 @@ class FaultDataModule:
                 ],
                 dtype=np.int64,
             )
+        elif self.stream_order == "dirichlet":
+            # Select the capped sample set before ordering so changing beta
+            # compares the same samples, rather than different stream prefixes.
+            ids = ids[: self.max_target_per_domain]
+            by_class = [
+                ids[self.labels[ids] == c] for c in range(self.spec.num_classes)
+            ]
+            ids = self._order_target_ids(
+                by_class,
+                domain,
+                self.target_domains.index(domain)
+                if stream_position is None else stream_position,
+            )
         if self.max_target_per_domain is not None:
             ids = ids[: self.max_target_per_domain]
         return self._make_dataset(ids, domain)
@@ -625,6 +739,12 @@ class FaultDataModule:
             ids = ids[np.isin(ids, validation_ids)]
         return self._make_dataset(ids, domain)
 
+    def source_output_dataset(self, domain: int) -> FaultDomainDataset:
+        """Full-domain cache coverage, separate from held-out source evaluation."""
+        if not 0 <= domain < self.spec.num_domains:
+            raise ValueError(f"Invalid source output domain: {domain}")
+        return self._make_dataset(self._domain_indices(domain), domain)
+
     @staticmethod
     def loader(
         dataset: Dataset,
@@ -632,6 +752,7 @@ class FaultDataModule:
         shuffle: bool,
         workers: int,
         device: torch.device,
+        generator: Optional[torch.Generator] = None,
     ) -> DataLoader:
         return DataLoader(
             dataset,
@@ -640,4 +761,5 @@ class FaultDataModule:
             num_workers=workers,
             pin_memory=device.type == "cuda",
             drop_last=False,
+            generator=generator,
         )

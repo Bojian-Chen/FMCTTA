@@ -8,8 +8,13 @@ protocol:
   source_domains: [0]
   domains: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
   # Ordering inside each target domain: shuffled randomly mixes the selected
-  # samples; class_block groups classes; interleaved cycles through classes.
-  stream_order: shuffled # ["shuffled", "class_block", "interleaved"]
+  # samples; class_block groups classes; interleaved cycles through classes;
+  # dirichlet partitions selected samples into locally imbalanced time chunks.
+  stream_order: shuffled # ["shuffled", "class_block", "interleaved", "dirichlet"]
+  # Dirichlet concentration: smaller values create stronger local imbalance.
+  dirichlet_beta: 0.1
+  # null uses min(number of classes, selected samples) for each occurrence.
+  dirichlet_num_chunks: null
   # Number of consecutive target samples processed per online update.
   stream_batch_size: 64
   # Controls source splitting, sample selection/order, and model randomness.

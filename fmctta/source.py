@@ -18,6 +18,36 @@ class SourceTrainingResult:
     best_macro_f1: float
     best_epoch: int
     history: List[Dict[str, float]]
+    best_accuracy: float = -1.0
+
+
+def build_source_optimizer(
+    parameters,
+    optimizer: str,
+    learning_rate: float,
+    weight_decay: float,
+    momentum: float,
+) -> torch.optim.Optimizer:
+    """Build the optimizer used for supervised source training."""
+
+    optimizer = optimizer.lower()
+    if optimizer == "sgd":
+        return torch.optim.SGD(
+            parameters,
+            lr=learning_rate,
+            momentum=momentum,
+            weight_decay=weight_decay,
+            nesterov=momentum > 0,
+        )
+    if optimizer in {"adam", "adamw"}:
+        optimizer_type = torch.optim.AdamW if optimizer == "adamw" else torch.optim.Adam
+        return optimizer_type(
+            parameters,
+            lr=learning_rate,
+            weight_decay=weight_decay,
+        )
+    raise ValueError(f"Unsupported source optimizer: {optimizer}")
+
 
 
 @torch.no_grad()
@@ -48,6 +78,8 @@ def train_source(
     gradient_clip: float,
     ttt_auxiliary_head: Optional[nn.Module] = None,
     ttt_auxiliary_weight: float = 1.0,
+    optimizer: str = "sgd",
+    momentum: float = 0.9,
 ) -> SourceTrainingResult:
     if epochs < 1:
         raise ValueError("source epochs must be at least 1")
@@ -76,7 +108,9 @@ def train_source(
     else:
         model.disable_encoder_finetuning()
 
-    optimizer = torch.optim.AdamW(parameter_groups, weight_decay=weight_decay)
+    optimizer = build_source_optimizer(
+        parameter_groups, optimizer, learning_rate, weight_decay, momentum
+    )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     best_state = copy.deepcopy(model.state_dict())
     best_ttt_state = (
@@ -85,6 +119,7 @@ def train_source(
         else None
     )
     best_macro_f1 = -1.0
+    best_accuracy = -1.0
     best_epoch = 0
     history: List[Dict[str, float]] = []
 
@@ -141,6 +176,7 @@ def train_source(
             "epoch": float(epoch),
             "train_loss": loss_sum / max(total, 1),
             "train_accuracy": 100.0 * correct / max(total, 1),
+            "validation_loss": validation["cross_entropy"],
             "validation_accuracy": validation["accuracy"],
             "validation_macro_f1": validation["macro_f1"],
             "head_learning_rate": optimizer.param_groups[-1]["lr"],
@@ -153,7 +189,8 @@ def train_source(
             f"val_acc={record['validation_accuracy']:.2f}% "
             f"val_f1={record['validation_macro_f1']:.2f}%"
         )
-        if validation["macro_f1"] >= best_macro_f1:
+        if validation["accuracy"] >= best_accuracy:
+            best_accuracy = validation["accuracy"]
             best_macro_f1 = validation["macro_f1"]
             best_epoch = epoch
             best_state = copy.deepcopy(model.state_dict())
@@ -164,7 +201,7 @@ def train_source(
     if ttt_auxiliary_head is not None and best_ttt_state is not None:
         ttt_auxiliary_head.load_state_dict(best_ttt_state, strict=True)
     model.eval()
-    return SourceTrainingResult(best_macro_f1, best_epoch, history)
+    return SourceTrainingResult(best_macro_f1, best_epoch, history, best_accuracy)
 
 
 def save_checkpoint(
@@ -211,6 +248,8 @@ def load_checkpoint(
             "source_model.json"
         )
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if "source_seed" not in metadata and "seed" in metadata:
+        metadata["source_seed"] = metadata["seed"]
     mismatches = {
         key: (metadata[key], expected)
         for key, expected in expected_metadata.items()

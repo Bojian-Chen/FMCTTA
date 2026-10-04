@@ -111,6 +111,52 @@ def test_relative_improvement_units_and_zero_denominators():
     )
 
 
+def test_dirichlet_runner_passes_parameters_and_records_stream(toy_setup):
+    spec, common, root = toy_setup
+    args = parse_args(
+        common
+        + [
+            "--method",
+            "tent",
+            "--domains",
+            "1,1",
+            "--target_samples_per_class",
+            "2;3",
+            "--stream_order",
+            "dirichlet",
+            "--dirichlet_beta",
+            "0.5",
+            "--dirichlet_num_chunks",
+            "1",
+            "--run_name",
+            "dirichlet",
+        ]
+    )
+    expected = FaultDataModule(
+        spec,
+        root,
+        source_domains=(0,),
+        target_domains=(1, 1),
+        target_samples_per_class=((2, 2), (3, 3)),
+        normalization="none",
+        stream_order="dirichlet",
+        dirichlet_beta=0.5,
+        dirichlet_num_chunks=1,
+        seed=args.seed,
+    )
+    summary = runner.run_experiment(args)
+    assert summary["protocol"]["stream_order"] == "dirichlet"
+    assert summary["protocol"]["dirichlet_beta"] == 0.5
+    assert summary["protocol"]["dirichlet_num_chunks"] == 1
+    assert summary["dataset"]["sample_selection"] == expected.sample_selection
+    with (Path(summary["run_dir"]) / "predictions.csv").open() as file:
+        rows = list(csv.DictReader(file))
+    expected_ids = torch.cat(
+        [expected.target_dataset(1, position).sample_ids for position in (0, 1)]
+    )
+    assert [int(row["sample_id"]) for row in rows] == expected_ids.tolist()
+
+
 def test_source_domain_diagnostics_do_not_include_training_samples(toy_setup):
     spec, _, root = toy_setup
     data = FaultDataModule(

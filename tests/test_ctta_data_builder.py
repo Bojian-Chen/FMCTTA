@@ -128,7 +128,8 @@ def test_build_reindexes_in_configured_order(tmp_path: Path, monkeypatch) -> Non
             return {}
 
         def load_windows(
-            self, raw_root, class_name, domain_name, window_size_points
+            self, raw_root, class_name, domain_name, window_size_points,
+            stride_points=None,
         ):
             value = self.domain_names.index(domain_name) * 10
             value += self.class_names.index(class_name)

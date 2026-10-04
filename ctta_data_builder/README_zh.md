@@ -1,6 +1,6 @@
 # 可配置 CTTA 数据集构建器
 
-本目录提供 PU、WT、SDUST-Bearing、SDUST-Gear、MCC5-Gearbox、MCC5-Motor 和 HUST-Gearbox 的
+本目录提供 SK、PU、WT、SDUST-Bearing、SDUST-Gear、MCC5-Gearbox、MCC5-Motor 和 HUST-Gearbox 的
 原始数据读取与 FMCTTA MAT 构建
 代码。数据制作阶段只分配类别和数值域标签；源域、目标域及漂移顺序由运行实验时的
 `main.py --domains` 决定。
@@ -8,9 +8,10 @@
 ## 切窗约束
 
 - 每条样本包含原始采样率下连续的 `window_size_points` 个点，默认 1024。
-- 步长等于窗口点数，因此窗口不重叠。
+- `stride_points` 控制相邻窗口起点的间隔；省略时等于窗口点数，默认不重叠。
+- 步长小于窗口长度时产生重叠窗口，大于窗口长度时窗口间留有间隔。
 - 不重采样、不插值、不归一化。
-- `window_seconds` 和 `stride_seconds` 按 `window_size_points / 采样率` 写入元数据。
+- `window_seconds` 和 `stride_seconds` 分别按窗口点数、步长除以采样率写入元数据。
 - MCC5-Motor 使用原生 90 秒轨迹：稳态 1 为 10–30 秒和 60–80 秒，稳态 2
   为 35–55 秒。
 - MCC5-Gearbox 保持原生 60 秒轨迹：稳态 1 为 10–20 秒和 40–50 秒，稳态 2
@@ -21,6 +22,7 @@
 
 | 数据集 | 原采样率 | 默认 1024 点时长 | 通道 |
 |---|---:|---:|---|
+| SK | 25,600 Hz | 0.04 s | 3 |
 | PU | 64,000 Hz | 0.016 s | 1 |
 | WT | 48,000 Hz | 约 0.02133 s | 2（x/y） |
 | SDUST-Bearing | 25,600 Hz | 0.04 s | 6 |
@@ -35,6 +37,7 @@ UniFreq 的处理器支持不同长度的一维信号，因此采样点数不要
 ## 查看目录与验证配置
 
 ```bash
+python -m ctta_data_builder.build --catalog SK
 python -m ctta_data_builder.build --catalog PU
 python -m ctta_data_builder.build --catalog WT --window_size_points 2048
 python -m ctta_data_builder.build --catalog SDUST-Bearing
@@ -52,7 +55,7 @@ python -m ctta_data_builder.build \
 
 ## JSON 配置
 
-- `dataset`：`PU`、`WT`、`SDUST-Bearing`、`SDUST-Gear`、`MCC5-Gearbox`、`MCC5-Motor` 或
+- `dataset`：`SK`、`PU`、`WT`、`SDUST-Bearing`、`SDUST-Gear`、`MCC5-Gearbox`、`MCC5-Motor` 或
   `HUST-Gearbox`。
 - `name`：动态 FMCTTA 数据集名称。
 - `raw_root`、`output`：原始数据根目录与输出 MAT；相对路径相对于 JSON 文件解析。
@@ -60,11 +63,14 @@ python -m ctta_data_builder.build \
 - `channels`：按 `--catalog` 显示的名字选择输出通道及顺序；省略时保留全部通道。
 - `domains`：连续数值标签到原始工况的映射，输出域编号为 `0..D-1`。
 - `samples_per_class`：每个域、每个类别选取的相同样本数，至少为 2；设为
-  `null` 时保存每个域中全部完整、互不重叠的窗口。完整模式允许不同域具有不同长度，
+  `null` 时保存每个域中按配置步长得到的全部完整窗口。完整模式允许不同域具有不同长度，
   但同一域内各类别必须等长，才能保持工况时间对齐。
 - `window_size_points`：每条样本的采样点数，正整数，默认 1024。
+- `stride_points`：窗口起点间隔的采样点数，正整数；省略或设为 `null` 时等于窗口长度。
 - `selection`：`head` 取最早窗口，`uniform` 在可用时间序列中均匀选择。
-- `target_stream_order`：运行时的默认 `class_block`、`interleaved` 或 `shuffled`。
+- `target_stream_order`：运行时的默认 `class_block`、`interleaved`、`shuffled` 或 `dirichlet`。
+  Dirichlet 的参数在运行 YAML 的 `protocol.dirichlet_beta` 和
+  `protocol.dirichlet_num_chunks` 中设置，无需重新制作 MAT。
 
 CLI 可临时覆盖常用字段：
 
@@ -84,6 +90,35 @@ python -m ctta_data_builder.build \
 输出。
 
 输出已存在时默认拒绝覆盖；确认替换时添加 `--overwrite`。
+
+## 从当前 OCTTA 同步的配置
+
+`configs/octta/` 保存当前 OCTTA 的八套正式模板，保留其类别、通道、域顺序、样本数和
+切窗设置；相对路径已适配 FMCTTA 目录。原有 `configs/*.json` 仍保留原来的配置。
+新构建器输出 `fmctta_spec`，生成的 manifest 可直接用于 FMCTTA 的 `--dataset_manifest`。
+
+例如，先检查配置与原始文件，再构建 SDUST-Bearing：
+
+```bash
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/octta/sdust_bearing.json --validate_only
+python -m ctta_data_builder.build \
+  --config ctta_data_builder/configs/octta/sdust_bearing.json
+```
+
+OCTTA 模板中的步长是显式值。覆盖窗口长度时，如需非重叠窗口，也需将
+`--stride_points` 设为相同长度。`--raw_root` 和 `--output` 可覆盖模板中的路径。
+
+SK（山科）支持 10 类、24 个固定转速/载荷域，按转速优先排列，domain 6 对应
+`1000rpm_40N`。读取 `Signal.y_values.values` 的三个通道：`point2_z`、`point3_y`、
+`another_y`；精确匹配文件名 `<speed> <load>.mat`，排除 `flu` 和额外重复记录。
+模板 `configs/octta/sk.json` 默认选择 `point2_z`，使用 1024 点窗口、512 点步长，
+保存全部完整窗口。
+
+HUST-Gearbox 增加 domain 25–29，对应 `0~40~0Hz_L0` 至 `0~40~0Hz_L4`，
+读取 `<class>_L<load>_VS_0_40_0.txt` 的最后三个振动通道。
+`configs/octta/hust_gearbox.json` 包含全部 30 个域，默认 1024 点窗口、512 点步长。
+原有 `configs/hust_gearbox.json` 保留 25 个固定转速域和 0.1 秒切窗设置。
 
 ## 已迁移的 OCTTA 1024 点数据
 

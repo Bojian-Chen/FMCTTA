@@ -1,0 +1,53 @@
+{
+  "dataset": "HUST-Gearbox",
+  "name": "HUST_Gearbox_1024point_custom",
+  "raw_root": "/home/xyc3090/data1/PHMFD-data-prepocessing/Raw_data/Finetune",
+  "output": "../../../data/ctta_custom/HUST_Gearbox_1024point_custom.mat",
+  "classes": [
+    "H",
+    "B",
+    "M"
+  ],
+  "channels": [
+    "vibration_1",
+    "vibration_2",
+    "vibration_3"
+  ],
+  "domains": {
+    "0": "20Hz_L0",
+    "1": "20Hz_L1",
+    "2": "20Hz_L2",
+    "3": "20Hz_L3",
+    "4": "20Hz_L4",
+    "5": "25Hz_L0",
+    "6": "25Hz_L1",
+    "7": "25Hz_L2",
+    "8": "25Hz_L3",
+    "9": "25Hz_L4",
+    "10": "30Hz_L0",
+    "11": "30Hz_L1",
+    "12": "30Hz_L2",
+    "13": "30Hz_L3",
+    "14": "30Hz_L4",
+    "15": "35Hz_L0",
+    "16": "35Hz_L1",
+    "17": "35Hz_L2",
+    "18": "35Hz_L3",
+    "19": "35Hz_L4",
+    "20": "40Hz_L0",
+    "21": "40Hz_L1",
+    "22": "40Hz_L2",
+    "23": "40Hz_L3",
+    "24": "40Hz_L4",
+    "25": "0~40~0Hz_L0",
+    "26": "0~40~0Hz_L1",
+    "27": "0~40~0Hz_L2",
+    "28": "0~40~0Hz_L3",
+    "29": "0~40~0Hz_L4"
+  },
+  "samples_per_class": null,
+  "window_size_points": 1024,
+  "stride_points": 512,
+  "selection": "uniform",
+  "target_stream_order": "interleaved"
+}

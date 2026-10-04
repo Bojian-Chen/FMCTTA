@@ -50,6 +50,56 @@ class DatasetSpec:
         return str(domain)
 
 
+def _mcc5_triplet_catalog(
+    profiles: Tuple[Tuple[str, str, str, str], ...],
+) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
+    names = []
+    groups = []
+    for profile, recording_group, steady_1, steady_2 in profiles:
+        names.extend(
+            (
+                f"{profile}__steady_1_{steady_1}",
+                f"{profile}__steady_2_{steady_2}",
+                f"{profile}__stream",
+            )
+        )
+        groups.extend((recording_group,) * 3)
+    return tuple(names), tuple(groups)
+
+
+MCC5_GEARBOX_DOMAIN_NAMES, MCC5_GEARBOX_DOMAIN_GROUPS = _mcc5_triplet_catalog(
+    (
+        ("torque_1000rpm_10to5Nm", "torque_circulation_1000rpm_10Nm", "10Nm", "5Nm"),
+        ("torque_2000rpm_10to5Nm", "torque_circulation_2000rpm_10Nm", "10Nm", "5Nm"),
+        ("torque_3000rpm_10to5Nm", "torque_circulation_3000rpm_10Nm", "10Nm", "5Nm"),
+        ("torque_3000rpm_20to15Nm", "torque_circulation_3000rpm_20Nm", "20Nm", "15Nm"),
+        ("torque_2000rpm_20to15Nm", "torque_circulation_2000rpm_20Nm", "20Nm", "15Nm"),
+        ("torque_1000rpm_20to15Nm", "torque_circulation_1000rpm_20Nm", "20Nm", "15Nm"),
+        ("speed_20Nm_1000to500rpm", "speed_circulation_20Nm-1000rpm", "1000rpm", "500rpm"),
+        ("speed_20Nm_2000to1500rpm", "speed_circulation_20Nm-2000rpm", "2000rpm", "1500rpm"),
+        ("speed_20Nm_3000to2500rpm", "speed_circulation_20Nm-3000rpm", "3000rpm", "2500rpm"),
+        ("speed_10Nm_3000to2500rpm", "speed_circulation_10Nm-3000rpm", "3000rpm", "2500rpm"),
+        ("speed_10Nm_2000to1500rpm", "speed_circulation_10Nm-2000rpm", "2000rpm", "1500rpm"),
+        ("speed_10Nm_1000to500rpm", "speed_circulation_10Nm-1000rpm", "1000rpm", "500rpm"),
+    )
+)
+MCC5_MOTOR_DOMAIN_NAMES, MCC5_MOTOR_DOMAIN_GROUPS = _mcc5_triplet_catalog(
+    (
+        ("torque_1000rpm_20to15Nm", "torque_circulation_20Nm_1000rpm", "20Nm", "15Nm"),
+        ("torque_2000rpm_20to15Nm", "torque_circulation_20Nm_2000rpm", "20Nm", "15Nm"),
+        ("torque_3000rpm_20to15Nm", "torque_circulation_20Nm_3000rpm", "20Nm", "15Nm"),
+        ("torque_3000rpm_40to30Nm", "torque_circulation_40Nm_3000rpm", "40Nm", "30Nm"),
+        ("torque_2000rpm_40to30Nm", "torque_circulation_40Nm_2000rpm", "40Nm", "30Nm"),
+        ("torque_1000rpm_40to30Nm", "torque_circulation_40Nm_1000rpm", "40Nm", "30Nm"),
+        ("speed_40Nm_1000to500rpm", "speed_circulation_40Nm_1000rpm", "1000rpm", "500rpm"),
+        ("speed_40Nm_2000to1500rpm", "speed_circulation_40Nm_2000rpm", "2000rpm", "1500rpm"),
+        ("speed_40Nm_3000to2500rpm", "speed_circulation_40Nm_3000rpm", "3000rpm", "2500rpm"),
+        ("speed_20Nm_2000to1500rpm", "speed_circulation_20Nm_2000rpm", "2000rpm", "1500rpm"),
+        ("speed_20Nm_1000to500rpm", "speed_circulation_20Nm_1000rpm", "1000rpm", "500rpm"),
+    )
+)
+
+
 DATASETS: Dict[str, DatasetSpec] = {
     "PU": DatasetSpec(
         "PU",
@@ -66,6 +116,33 @@ DATASETS: Dict[str, DatasetSpec] = {
             "N15_M01_F10",
             "N15_M07_F04",
         ),
+    ),
+    "SK": DatasetSpec(
+        "SK",
+        "SK_all_10classes.mat",
+        10,
+        24,
+        100,
+        (6, 1, 8, 15, 22, 17),
+        "Shandong University of Science and Technology bearing dataset",
+    ),
+    "SK_new": DatasetSpec(
+        "SK_new",
+        "SK_new_all_10classes.mat",
+        10,
+        24,
+        100,
+        (6, 1, 8, 15, 22, 17),
+        "Alternative preprocessing of the SK bearing dataset",
+    ),
+    "HIT": DatasetSpec(
+        "HIT",
+        "HIT_23doamins_3classes.mat",
+        3,
+        23,
+        100,
+        (0, 4, 8, 12, 16, 20, 22),
+        "HIT bearing dataset",
     ),
     "HUST": DatasetSpec(
         "HUST",
@@ -87,70 +164,84 @@ DATASETS: Dict[str, DatasetSpec] = {
     ),
     "MCC5_THU_Gearbox": DatasetSpec(
         name="MCC5_THU_Gearbox",
-        filename="MCC5_THU_Gearbox_online_20classes_12domains.mat",
+        filename="MCC5_THU_Gearbox_online_20classes_36domains.mat",
         num_classes=20,
-        num_domains=12,
+        num_domains=36,
         samples_per_class=100,
-        default_sequence=tuple(range(12)),
-        description=(
-            "MCC5-THU gearbox: one steady labeled source followed by "
-            "eleven time-varying speed/load target streams"
-        ),
+        default_sequence=(0,) + tuple(range(5, 36, 3)),
+        description="MCC5-THU gearbox: two steady candidates and one complete stream for each of twelve circulation recordings",
         num_channels=3,
         default_stream_order="interleaved",
-        domain_names=(
-            "source_steady_1000rpm_10Nm",
-            "torque_circulation_2000rpm_10Nm",
-            "torque_circulation_3000rpm_10Nm",
-            "torque_circulation_3000rpm_20Nm",
-            "torque_circulation_2000rpm_20Nm",
-            "torque_circulation_1000rpm_20Nm",
-            "speed_circulation_20Nm-1000rpm",
-            "speed_circulation_20Nm-2000rpm",
-            "speed_circulation_20Nm-3000rpm",
-            "speed_circulation_10Nm-3000rpm",
-            "speed_circulation_10Nm-2000rpm",
-            "speed_circulation_10Nm-1000rpm",
-        ),
+        domain_names=MCC5_GEARBOX_DOMAIN_NAMES,
+        domain_groups=MCC5_GEARBOX_DOMAIN_GROUPS,
     ),
     "MCC5_THU_Motor": DatasetSpec(
         name="MCC5_THU_Motor",
-        filename="MCC5_THU_Motor_online_24classes_11domains.mat",
+        filename="MCC5_THU_Motor_online_24classes_33domains.mat",
         num_classes=24,
-        num_domains=11,
+        num_domains=33,
         samples_per_class=100,
-        default_sequence=tuple(range(11)),
-        description=(
-            "MCC5-THU motor: one steady labeled source followed by "
-            "ten time-varying speed/load target streams"
-        ),
+        default_sequence=(0,) + tuple(range(5, 33, 3)),
+        description="MCC5-THU motor: two steady candidates and one complete stream for each of eleven valid circulation recordings",
         num_channels=3,
         default_stream_order="interleaved",
-        domain_names=(
-            "source_steady_1000rpm_20Nm",
-            "torque_circulation_2000rpm_20Nm",
-            "torque_circulation_3000rpm_20Nm",
-            "torque_circulation_3000rpm_40Nm",
-            "torque_circulation_2000rpm_40Nm",
-            "torque_circulation_1000rpm_40Nm",
-            "speed_circulation_40Nm_1000rpm",
-            "speed_circulation_40Nm_2000rpm",
-            "speed_circulation_40Nm_3000rpm",
-            "speed_circulation_20Nm_2000rpm",
-            "speed_circulation_20Nm_1000rpm",
-        ),
+        domain_names=MCC5_MOTOR_DOMAIN_NAMES,
+        domain_groups=MCC5_MOTOR_DOMAIN_GROUPS,
+    ),
+    "iFlytek": DatasetSpec(
+        "iFlytek",
+        "iFlytek_all_5classes.mat",
+        5,
+        16,
+        100,
+        (2, 3, 4, 5, 7),
+        "iFlytek acoustic fault dataset",
     ),
     "WT": DatasetSpec(
         "WT",
-        "WT_0p1s_custom.mat",
+        "WT_all_5classes.mat",
         5,
         8,
+        100,
+        (0, 1, 2, 3, 4),
+        "Wind-turbine fault dataset",
+    ),
+    "PU_Real": DatasetSpec(
+        "PU_Real",
+        "PU_Real_4doamins_5classes.mat",
+        5,
+        4,
+        100,
+        (3, 2, 0, 1),
+        "Paderborn real bearing faults",
+    ),
+    "PU_Real_200": DatasetSpec(
+        "PU_Real_200",
+        "PU_Real_4doamins_5classes_200.mat",
+        5,
+        4,
         200,
-        tuple(range(8)),
-        "Custom native-rate 0.1-second WT CTTA dataset",
-        num_channels=2,
-        default_stream_order="interleaved",
-        domain_names=("20", "25", "30", "35", "40", "45", "50", "55"),
+        (3, 2, 0, 1),
+        "Paderborn real bearing faults, 200 samples per class",
+    ),
+    "PU_Art": DatasetSpec(
+        "PU_Art",
+        "PU_Art_4doamins_8classes.mat",
+        8,
+        4,
+        100,
+        (2, 0, 1, 3),
+        "Paderborn artificial bearing faults",
+    ),
+    "Robot": DatasetSpec(
+        "Robot",
+        "Robot_4classes_4domains.mat",
+        4,
+        4,
+        20,
+        (0, 1, 2, 3),
+        "Robot fault dataset (labels in the MAT file require reconstruction)",
+        repair_labels=True,
     ),
 }
 

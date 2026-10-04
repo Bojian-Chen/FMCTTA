@@ -2,6 +2,7 @@
 """Run foundation-model continual test-time adaptation for fault diagnosis."""
 
 import argparse
+import math
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
@@ -65,12 +66,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     protocol.add_argument(
         "--protocol_mode",
-        choices=["standard", "target_forgetting"],
+        choices=["standard", "target_forgetting", "continual"],
         default="standard",
         help=(
             "standard runs the target stream normally; target_forgetting "
             "adds read-only probes before and after every target occurrence "
-            "and measures performance drops when domains repeat"
+            "and measures performance drops when domains repeat; continual "
+            "simulates timestamp-ordered fault onsets in one target domain"
         ),
     )
     protocol.add_argument(
@@ -92,11 +94,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     protocol.add_argument(
         "--stream_order",
-        choices=["shuffled", "class_block", "interleaved"],
+        choices=["shuffled", "class_block", "interleaved", "dirichlet"],
         default=None,
     )
+    protocol.add_argument(
+        "--dirichlet_beta",
+        type=float,
+        default=0.1,
+        help=(
+            "NOTE Dirichlet concentration per chunk; smaller means stronger "
+            "local class imbalance"
+        ),
+    )
+    protocol.add_argument(
+        "--dirichlet_num_chunks",
+        type=int,
+        default=None,
+        help=(
+            "Dirichlet temporal chunks per target occurrence; defaults to "
+            "the number of classes"
+        ),
+    )
     protocol.add_argument("--stream_batch_size", type=int, default=16)
-    protocol.add_argument("--seed", type=int, default=2025)
+    protocol.add_argument("--source_seed", type=int, default=2025,
+                          help="Fixed source splitting, normalization, and training seed")
+    protocol.add_argument("--seed", type=int, default=2025,
+                          help="Online adaptation, target selection, and stream seed")
+    protocol.add_argument("--continual_class_onsets", default=None,
+                          help="Per-class onset seconds, e.g. 0,8,16; null excludes a class")
+    protocol.add_argument("--continual_window_size", type=int, default=100,
+                          help="Trailing sample count for continual performance curves")
     protocol.add_argument(
         "--source_eval_domains",
         default="all",
@@ -139,6 +166,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     data.add_argument("--source_validation_ratio", type=float, default=0.2)
     data.add_argument("--strict_data", action="store_true")
+    data.add_argument("--allow_source_target_recording_overlap", action="store_true",
+                      help="Allow source and target domains from the same raw recording group")
     data.add_argument(
         "--allow_repeated_target_samples",
         action="store_true",
@@ -235,10 +264,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     model.add_argument("--classifier_dropout", type=float, default=0.1)
-    model.add_argument("--source_epochs", type=int, default=30)
+    model.add_argument("--source_epochs", type=int, default=40)
+    model.add_argument("--source_optimizer", choices=["sgd", "adam", "adamw"], default="sgd")
+    model.add_argument("--source_momentum", type=float, default=0.9)
     model.add_argument("--source_batch_size", type=int, default=64)
     model.add_argument("--eval_batch_size", type=int, default=128)
-    model.add_argument("--source_learning_rate", type=float, default=1e-2)
+    model.add_argument("--source_learning_rate", type=float, default=0.1)
     model.add_argument(
         "--source_backbone_lr_scale",
         type=float,
@@ -248,8 +279,8 @@ def build_parser() -> argparse.ArgumentParser:
             "at this LR scale"
         ),
     )
-    model.add_argument("--source_weight_decay", type=float, default=1e-4)
-    model.add_argument("--source_gradient_clip", type=float, default=1.0)
+    model.add_argument("--source_weight_decay", type=float, default=5e-4)
+    model.add_argument("--source_gradient_clip", type=float, default=0.0)
     model.add_argument(
         "--source_checkpoint",
         default="",
@@ -555,6 +586,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
 def validate_args(args: argparse.Namespace) -> None:
     positive = {
+        "continual_window_size": args.continual_window_size,
         "source_epochs": args.source_epochs,
         "source_batch_size": args.source_batch_size,
         "eval_batch_size": args.eval_batch_size,
@@ -569,6 +601,14 @@ def validate_args(args: argparse.Namespace) -> None:
     invalid = [name for name, value in positive.items() if value < 1]
     if invalid:
         raise ValueError(f"These arguments must be positive: {', '.join(invalid)}")
+    if not math.isfinite(args.dirichlet_beta) or args.dirichlet_beta <= 0:
+        raise ValueError("dirichlet_beta must be finite and positive")
+    if args.dirichlet_num_chunks is not None and (
+        not isinstance(args.dirichlet_num_chunks, int)
+        or isinstance(args.dirichlet_num_chunks, bool)
+        or args.dirichlet_num_chunks < 1
+    ):
+        raise ValueError("dirichlet_num_chunks must be a positive integer")
     if args.workers < 0:
         raise ValueError("workers cannot be negative")
     if (
@@ -577,6 +617,8 @@ def validate_args(args: argparse.Namespace) -> None:
         and args.target_domain_repeats < 1
     ):
         raise ValueError("target_domain_repeats must be positive")
+    if not 0 <= args.source_momentum < 1:
+        raise ValueError("source_momentum must be in [0, 1)")
     if args.source_backbone_lr_scale < 0:
         raise ValueError("source_backbone_lr_scale cannot be negative")
     if args.model_input_length < 0:
